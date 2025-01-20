@@ -6,6 +6,7 @@ import { onMounted, ref } from 'vue';
 
 onMounted(() => {
     ProductService.getProducts().then((data) => (products.value = data));
+
 });
 
 const toast = useToast();
@@ -205,7 +206,7 @@ function getStatusLabel(status) {
             </DataTable>
         </div>
 
-        <Dialog v-model:visible="productDialog" :style="{ width: '450px' }" header="Product Details" :modal="true">
+        <Dialog v-model:visible="productDialog" :style="{ width: '700px' }" header="Product Details" :modal="true">
             <div class="flex flex-col gap-6">
                 <img v-if="product.image" :src="`https://primefaces.org/cdn/primevue/images/product/${product.image}`" :alt="product.image" class="block m-auto pb-4" />
                 <div>

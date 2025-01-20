@@ -22,7 +22,12 @@ const setupTypes = ref([
     { label: 'Tax Type', value: 'taxType' },
     { label: 'Appeal Status', value: 'appealStatus' },
     { label: 'Application Status', value: 'applicationStatus' },
-    { label: 'Currency', value: 'currency'}
+    { label: 'Currency', value: 'currency' },
+    { label: 'Applicant Type', value: 'applicantType' },
+    { label: 'Applicant Type', value: 'applicationType' },
+    { label: 'Regions', value: 'region' },
+    { label: 'Gfs', value: 'gfs' }
+
 ]);
 
 const currentSetupType = ref(setupTypes.value[0].value); // Default to the first type
@@ -84,7 +89,7 @@ function saveSetup() {
 function deleteSetup(rowData) {
     SetupService.deleteSetup(currentSetupType.value, rowData.id).then(() => {
         toast.add({ severity: 'success', summary: 'Deleted', detail: 'Setup Deleted', life: 3000 });
-        fetchSetups();
+        fetchSetups(currentSetupType);
     });
 }
 </script>

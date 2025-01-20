@@ -8,12 +8,24 @@
         "lint": "eslint --fix . --ext .vue,.js,.jsx,.cjs,.mjs --fix --ignore-path .gitignore"
     },
     "dependencies": {
+        "@chenfengyuan/vue-qrcode": "^2.0.0",
         "@primevue/themes": "^4.0.0",
+        "@vueuse/core": "^12.3.0",
+        "axios": "^1.7.7",
         "chart.js": "3.3.2",
+        "idle-vue": "^2.0.5",
+        "maska": "^3.0.3",
+        "number-to-words": "^1.2.4",
         "primeicons": "^6.0.1",
         "primevue": "^4.0.0",
+        "qrcode.vue": "^3.6.0",
+        "to-words": "^3.7.0",
+        "v-mask": "^2.3.0",
         "vue": "^3.4.34",
-        "vue-router": "^4.4.0"
+        "vue-qrcode-component": "^2.1.1",
+        "vue-router": "^4.4.0",
+        "vuetify": "^3.7.5",
+        "xlsx": "^0.18.5"
     },
     "devDependencies": {
         "@primevue/auto-import-resolver": "^4.0.1",

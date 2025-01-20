@@ -4,124 +4,121 @@ import { createRouter, createWebHistory } from 'vue-router';
 const router = createRouter({
     history: createWebHistory(),
     routes: [
+        // Default route redirects to login
+        {
+            path: '/',
+            redirect: '/login'
+        },
+        // Login route
+        {
+            path: '/login',
+            name: 'login',
+            component: () => import('@/views/pages/auth/Login.vue')
+        },
+        // App layout and protected routes
         {
             path: '/',
             component: AppLayout,
             children: [
                 {
-                    path: '/',
+                    path: '/dashboard',
                     name: 'dashboard',
                     component: () => import('@/views/Dashboard.vue')
                 },
                 {
-                    path: '/uikit/formlayout',
-                    name: 'formlayout',
-                    component: () => import('@/views/uikit/FormLayout.vue')
-                },
-                {
-                    path: '/uikit/input',
-                    name: 'input',
-                    component: () => import('@/views/uikit/InputDoc.vue')
-                },
-                {
-                    path: '/uikit/button',
-                    name: 'button',
-                    component: () => import('@/views/uikit/ButtonDoc.vue')
-                },
-                {
-                    path: '/uikit/table',
-                    name: 'table',
-                    component: () => import('@/views/uikit/TableDoc.vue')
-                },
-                {
-                    path: '/uikit/list',
-                    name: 'list',
-                    component: () => import('@/views/uikit/ListDoc.vue')
-                },
-                {
-                    path: '/uikit/tree',
-                    name: 'tree',
-                    component: () => import('@/views/uikit/TreeDoc.vue')
-                },
-                {
-                    path: '/uikit/panel',
-                    name: 'panel',
-                    component: () => import('@/views/uikit/PanelsDoc.vue')
-                },
-
-                {
-                    path: '/uikit/overlay',
-                    name: 'overlay',
-                    component: () => import('@/views/uikit/OverlayDoc.vue')
-                },
-                {
-                    path: '/uikit/media',
-                    name: 'media',
-                    component: () => import('@/views/uikit/MediaDoc.vue')
-                },
-                {
-                    path: '/uikit/message',
-                    name: 'message',
-                    component: () => import('@/views/uikit/MessagesDoc.vue')
-                },
-                {
-                    path: '/uikit/file',
-                    name: 'file',
-                    component: () => import('@/views/uikit/FileDoc.vue')
-                },
-                {
-                    path: '/uikit/menu',
-                    name: 'menu',
-                    component: () => import('@/views/uikit/MenuDoc.vue')
-                },
-                {
-                    path: '/uikit/charts',
-                    name: 'charts',
-                    component: () => import('@/views/uikit/ChartDoc.vue')
-                },
-                {
-                    path: '/uikit/misc',
-                    name: 'misc',
-                    component: () => import('@/views/uikit/MiscDoc.vue')
-                },
-                {
-                    path: '/uikit/timeline',
-                    name: 'timeline',
-                    component: () => import('@/views/uikit/TimelineDoc.vue')
-                },
-                {
                     path: '/pages/empty',
                     name: 'empty',
-                    component: () => import('@/views/pages/Empty.vue')
+                    component: () => import('@/views/pages/defaults/Empty.vue')
                 },
                 {
                     path: '/pages/crud',
                     name: 'crud',
-                    component: () => import('@/views/pages/Crud.vue')
+                    component: () => import('@/views/pages/defaults/Crud.vue')
                 },
                 {
-                    path: '/documentation',
-                    name: 'documentation',
-                    component: () => import('@/views/pages/Documentation.vue')
+                    path: '/pages/notices',
+                    name: 'notices',
+                    component: () => import('@/views/pages/appeals/Notices.vue')
+                },
+                {
+                    path: '/pages/high',
+                    name: 'courts',
+                    component: () => import('@/views/pages/appeals/NoticeHighCourt.vue')
+                },
+                {
+                    path: '/pages/summons',
+                    name: 'summons',
+                    component: () => import('@/views/pages/appeals/Summons.vue')
+                },
+                {
+                    path: '/pages/applications',
+                    name: 'applications',
+                    component: () => import('@/views/pages/appeals/Applications.vue')
+                },
+                {
+                    path: '/pages/statements',
+                    name: 'statements',
+                    component: () => import('@/views/pages/appeals/Statements.vue')
+                },
+                {
+                    path: '/common-setup',
+                    name: 'common-setup',
+                    component: () => import('@/views/pages/settings/CommonSetup.vue')
+                },
+                {
+                    path: '/judges',
+                    name: 'judges',
+                    component: () => import('@/views/pages/settings/Judge.vue')
+                },
+                {
+                    path: '/parties',
+                    name: 'parties',
+                    component: () => import('@/views/pages/settings/Parties.vue')
+                },
+                {
+                    path: '/fees',
+                    name: 'fees',
+                    component: () => import('@/views/pages/settings/Fees.vue')
+                },
+                {
+                    path: '/bill',
+                    name: 'bill',
+                    component: () => import('@/views/pages/payment/Bill.vue')
+                },
+                {
+                    path: '/payment',
+                    name: 'payment',
+                    component: () => import('@/views/pages/payment/Payment.vue')
+                },
+                {
+                    path: '/user-management/users',
+                    name: 'users',
+                    component: () => import('@/views/pages/settings/UserManagement.vue')
+                },
+                {
+                    path: '/user-management/roles',
+                    name: 'roles',
+                    component: () => import('@/views/pages/settings/RoleManagement.vue')
+                },
+                {
+                    path: '/reports/appeal-reports',
+                    name: 'appealReports',
+                    component: () => import('@/views/pages/reports/AppealReports.vue')
+                },
+                {
+                    path: '/reports/payment-reports',
+                    name: 'paymentReports',
+                    component: () => import('@/views/pages/reports/PaymentReports.vue')
                 }
             ]
         },
+        // Public pages
         {
             path: '/landing',
             name: 'landing',
-            component: () => import('@/views/pages/Landing.vue')
+            component: () => import('@/views/pages/defaults/Landing.vue')
         },
-        {
-            path: '/pages/notfound',
-            name: 'notfound',
-            component: () => import('@/views/pages/NotFound.vue')
-        },
-
-        {
-            path: '/auth/login',
-            name: 'login',
-            component: () => import('@/views/pages/auth/Login.vue')
-        },
+        // Authentication-related pages
         {
             path: '/auth/access',
             name: 'accessDenied',
@@ -131,6 +128,12 @@ const router = createRouter({
             path: '/auth/error',
             name: 'error',
             component: () => import('@/views/pages/auth/Error.vue')
+        },
+        // Catch-all route for 404
+        {
+            path: '/:pathMatch(.*)*',
+            name: 'notfound',
+            component: () => import('@/views/pages/appeals/NotFound.vue')
         }
     ]
 });

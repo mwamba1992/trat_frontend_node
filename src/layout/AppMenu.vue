@@ -3,145 +3,160 @@ import { ref } from 'vue';
 
 import AppMenuItem from './AppMenuItem.vue';
 
+const permissionMapping = {
+    'Manage Bill': ['Bill'],
+    'Manage Settings': ['Common Setup', 'Judge', 'Parties', 'Fees', 'User Management'],
+    'Manage Payment': ['Payment'],
+    'Manage Notice': ['Notices'],
+    'Manage Statement': ['Statements'],
+    'Manage Application': ['Applications'],
+    'Report Manager': ['Appeal Reports', 'Payment Reports']
+};
+
 const model = ref([
     {
         label: 'Home',
-        items: [{ label: 'Dashboard', icon: 'pi pi-fw pi-home', to: '/' }]
+        items: [{ label: 'Dashboard', icon: 'pi pi-fw pi-home', to: '/dashboard' }]
     },
     {
-        label: 'UI Components',
-        items: [
-            { label: 'Form Layout', icon: 'pi pi-fw pi-id-card', to: '/uikit/formlayout' },
-            { label: 'Input', icon: 'pi pi-fw pi-check-square', to: '/uikit/input' },
-            { label: 'Button', icon: 'pi pi-fw pi-mobile', to: '/uikit/button', class: 'rotated-icon' },
-            { label: 'Table', icon: 'pi pi-fw pi-table', to: '/uikit/table' },
-            { label: 'List', icon: 'pi pi-fw pi-list', to: '/uikit/list' },
-            { label: 'Tree', icon: 'pi pi-fw pi-share-alt', to: '/uikit/tree' },
-            { label: 'Panel', icon: 'pi pi-fw pi-tablet', to: '/uikit/panel' },
-            { label: 'Overlay', icon: 'pi pi-fw pi-clone', to: '/uikit/overlay' },
-            { label: 'Media', icon: 'pi pi-fw pi-image', to: '/uikit/media' },
-            { label: 'Menu', icon: 'pi pi-fw pi-bars', to: '/uikit/menu' },
-            { label: 'Message', icon: 'pi pi-fw pi-comment', to: '/uikit/message' },
-            { label: 'File', icon: 'pi pi-fw pi-file', to: '/uikit/file' },
-            { label: 'Chart', icon: 'pi pi-fw pi-chart-bar', to: '/uikit/charts' },
-            { label: 'Timeline', icon: 'pi pi-fw pi-calendar', to: '/uikit/timeline' },
-            { label: 'Misc', icon: 'pi pi-fw pi-circle', to: '/uikit/misc' }
-        ]
-    },
-    {
-        label: 'Pages',
+        label: 'Appeals',
         icon: 'pi pi-fw pi-briefcase',
         to: '/pages',
         items: [
             {
-                label: 'Landing',
-                icon: 'pi pi-fw pi-globe',
-                to: '/landing'
+                label: 'Notices',
+                icon: 'pi pi-fw pi-book',
+                to: '/pages/notices'
             },
             {
-                label: 'Auth',
+                label: 'Statements',
+                icon: 'pi pi-fw pi-envelope',
+                to: '/pages/statements'
+            },
+            {
+                label: 'Applications',
+                icon: 'pi pi-fw pi-briefcase',
+                to: '/pages/applications'
+            },
+            {
+                label: 'Hearings',
+                icon: 'pi pi-fw pi-calendar-times',
+                to: '/pages/summons'
+            },
+            {
+                label: 'Notice High Court',
+                icon: 'pi pi-fw pi-calendar-times',
+                to: '/pages/high'
+            }
+        ]
+    },
+    {
+        label: 'Payments',
+        items: [
+            {
+                label: 'Bill',
+                icon: 'pi pi-fw pi-bookmark',
+                to: '/bill'
+            },
+            {
+                label: 'Payment',
+                icon: 'pi pi-fw pi-dollar',
+                to: '/payment'
+            }
+        ]
+    },
+    {
+        label: 'SETTINGS',
+        items: [
+            {
+                label: 'Common Setup',
+                icon: 'pi pi-fw pi-cog',
+                to: '/common-setup'
+            },
+            {
+                label: 'Judge',
+                icon: 'pi pi-fw pi-id-card',
+                to: '/judges'
+            },
+            {
+                label: 'Parties',
+                icon: 'pi pi-fw pi-id-card',
+                to: '/parties'
+            },
+            {
+                label: 'Fees',
+                icon: 'pi pi-fw pi-cog',
+                to: '/fees'
+            },
+            {
+                label: 'User Management',
                 icon: 'pi pi-fw pi-user',
                 items: [
                     {
-                        label: 'Login',
-                        icon: 'pi pi-fw pi-sign-in',
-                        to: '/auth/login'
+                        label: 'Users',
+                        icon: 'pi pi-fw pi-user',
+                        to: '/user-management/users'
                     },
                     {
-                        label: 'Error',
-                        icon: 'pi pi-fw pi-times-circle',
-                        to: '/auth/error'
-                    },
-                    {
-                        label: 'Access Denied',
-                        icon: 'pi pi-fw pi-lock',
-                        to: '/auth/access'
-                    }
-                ]
-            },
-            {
-                label: 'Crud',
-                icon: 'pi pi-fw pi-pencil',
-                to: '/pages/crud'
-            },
-            {
-                label: 'Not Found',
-                icon: 'pi pi-fw pi-exclamation-circle',
-                to: '/pages/notfound'
-            },
-            {
-                label: 'Empty',
-                icon: 'pi pi-fw pi-circle-off',
-                to: '/pages/empty'
-            }
-        ]
-    },
-    {
-        label: 'Hierarchy',
-        items: [
-            {
-                label: 'Submenu 1',
-                icon: 'pi pi-fw pi-bookmark',
-                items: [
-                    {
-                        label: 'Submenu 1.1',
-                        icon: 'pi pi-fw pi-bookmark',
-                        items: [
-                            { label: 'Submenu 1.1.1', icon: 'pi pi-fw pi-bookmark' },
-                            { label: 'Submenu 1.1.2', icon: 'pi pi-fw pi-bookmark' },
-                            { label: 'Submenu 1.1.3', icon: 'pi pi-fw pi-bookmark' }
-                        ]
-                    },
-                    {
-                        label: 'Submenu 1.2',
-                        icon: 'pi pi-fw pi-bookmark',
-                        items: [{ label: 'Submenu 1.2.1', icon: 'pi pi-fw pi-bookmark' }]
-                    }
-                ]
-            },
-            {
-                label: 'Submenu 2',
-                icon: 'pi pi-fw pi-bookmark',
-                items: [
-                    {
-                        label: 'Submenu 2.1',
-                        icon: 'pi pi-fw pi-bookmark',
-                        items: [
-                            { label: 'Submenu 2.1.1', icon: 'pi pi-fw pi-bookmark' },
-                            { label: 'Submenu 2.1.2', icon: 'pi pi-fw pi-bookmark' }
-                        ]
-                    },
-                    {
-                        label: 'Submenu 2.2',
-                        icon: 'pi pi-fw pi-bookmark',
-                        items: [{ label: 'Submenu 2.2.1', icon: 'pi pi-fw pi-bookmark' }]
+                        label: 'Roles',
+                        icon: 'pi pi-fw pi-users',
+                        to: '/user-management/roles'
                     }
                 ]
             }
         ]
     },
     {
-        label: 'Get Started',
+        label: 'Reports',
         items: [
             {
-                label: 'Documentation',
-                icon: 'pi pi-fw pi-book',
-                to: '/documentation'
+                label: 'Appeal Reports',
+                icon: 'pi pi-fw pi-chart-bar',
+                to: '/reports/appeal-reports'
             },
             {
-                label: 'View Source',
-                icon: 'pi pi-fw pi-github',
-                url: 'https://github.com/primefaces/sakai-vue',
-                target: '_blank'
+                label: 'Payment Reports',
+                icon: 'pi pi-fw pi-dollar',
+                to: '/reports/payment-reports'
             }
         ]
     }
 ]);
+
+// Function to filter the menu based on permissions
+function filterMenu(model, permissions) {
+    return model
+        .map((item) => {
+            // Check if the current item has a permission and if the user has that permission
+            if (item.permission && !permissions.includes(item.permission)) {
+                return null; // This item is not allowed
+            }
+
+            // Filter the 'items' of the current item based on permissions
+            if (item.items) {
+                item.items = item.items.filter((subItem) => {
+                    // Find the required permission for this item using permissionMapping
+                    let requiredPermission = Object.keys(permissionMapping).find((key) => permissionMapping[key].includes(subItem.label));
+
+                    // Check if the user has the permission corresponding to the label
+                    return !requiredPermission || permissions.includes(requiredPermission);
+                });
+            }
+
+            return item; // Return the item (can be null if filtered out)
+        })
+        .filter((item) => item !== null); // Filter out any null items (those that were removed)
+}
+// Retrieve permissions string from localStorage
+console.log(localStorage.getItem('permissions'));
+
+// Apply the filter to the model
+const filteredModel = filterMenu(model.value, localStorage.getItem('permissions'));
 </script>
 
 <template>
     <ul class="layout-menu">
-        <template v-for="(item, i) in model" :key="item">
+        <template v-for="(item, i) in filteredModel" :key="item">
             <app-menu-item v-if="!item.separator" :item="item" :index="i"></app-menu-item>
             <li v-if="item.separator" class="menu-separator"></li>
         </template>
