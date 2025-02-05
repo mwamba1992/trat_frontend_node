@@ -38,11 +38,9 @@ api.interceptors.response.use(
         return response;
     },
     async (error) => {
-        console.log('Error:', error);
         // Check if the error is a 401 (Unauthorized)
         if (error.response && error.response.status === 401) {
 
-            console.log('Token expired:', error);
             // Token might have expired or is invalid
             const refreshToken = localStorage.getItem('refresh_token');
 
@@ -68,7 +66,6 @@ api.interceptors.response.use(
                     return api(error.config);
                 } catch (refreshError) {
                     // If refreshing the token fails, logout the user or redirect to login
-                    console.error('Token refresh failed:', refreshError);
                     localStorage.removeItem('access_token');
                     localStorage.removeItem('refresh_token');
                     // Redirect to login page or show login modal

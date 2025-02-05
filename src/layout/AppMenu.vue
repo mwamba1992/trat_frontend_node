@@ -118,6 +118,11 @@ const model = ref([
                 label: 'Payment Reports',
                 icon: 'pi pi-fw pi-dollar',
                 to: '/reports/payment-reports'
+            },
+            {
+                label: 'Cause List Reports',
+                icon: 'pi pi-fw pi-dollar',
+                to: '/reports/summons-reports'
             }
         ]
     }
@@ -147,8 +152,7 @@ function filterMenu(model, permissions) {
         })
         .filter((item) => item !== null); // Filter out any null items (those that were removed)
 }
-// Retrieve permissions string from localStorage
-console.log(localStorage.getItem('permissions'));
+// Retrieve permissions string from localStorage;
 
 // Apply the filter to the model
 const filteredModel = filterMenu(model.value, localStorage.getItem('permissions'));

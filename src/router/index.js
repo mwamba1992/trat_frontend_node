@@ -109,6 +109,11 @@ const router = createRouter({
                     path: '/reports/payment-reports',
                     name: 'paymentReports',
                     component: () => import('@/views/pages/reports/PaymentReports.vue')
+                },
+                {
+                    path: '/reports/summons-reports',
+                    name: 'Cause List',
+                    component: () => import('@/views/pages/reports/SummonReports.vue')
                 }
             ]
         },

@@ -35,10 +35,9 @@ const searchCriteria = ref({
     region: ''
 });
 
-
 const choices = ref([
-    {  name: 'Appeals', id: '2' },
-    {  name: 'Application', id: '1' },
+    { name: 'Appeals', id: '2' },
+    { name: 'Application', id: '1' }
 ]);
 const appealFor = ref([
     { label: 'Applications', value: '1' },
@@ -329,16 +328,15 @@ function searchApplications() {
     isLoading.value = true;
     AppealService.searchAppeals(searchCriteria.value)
         .then((data) => {
-            if(searchCriteria.value.type == "1"){
+            if (searchCriteria.value.type == '1') {
                 availableApplications.value = data._embedded.applicationregister.map((application) => ({
                     id: application.id,
-                    name: "Application " + application.applicationNo + ' - ' + application._embedded.taxes.taxName
+                    name: 'Application ' + application.applicationNo + ' - ' + application._embedded.taxes.taxName
                 }));
-
-            }else{
+            } else {
                 availableApplications.value = data._embedded.appeals.map((application) => ({
                     id: application.id,
-                    name: "Appeal" + application.appealNo + ' - ' + application._embedded.tax.taxName
+                    name: 'Appeal' + application.appealNo + ' - ' + application._embedded.tax.taxName
                 }));
             }
             isLoading.value = false;
@@ -361,7 +359,7 @@ function updateDecision(app) {
 }
 
 function viewAppeal(app) {
-    console.log(app)
+    console.log(app);
     appeal.value = { ...app };
     appealViewDialog.value = true;
 }
@@ -369,8 +367,6 @@ function viewAppeal(app) {
 function formatAmount(value) {
     return new Intl.NumberFormat().format(value);
 }
-
-
 </script>
 
 <template>
@@ -504,17 +500,7 @@ function formatAmount(value) {
                 <!-- Input Row -->
                 <div class="flex align-items-center gap-3 mb-3">
                     <!-- Amount Input -->
-                    <InputNumber
-                        v-model="appealAmount.amount"
-                        ref="amountInput"
-                        placeholder="Enter Amount"
-                        class="flex-grow-1"
-                        mode="decimal"
-                        min="0"
-                        step="0.01"
-                        :minFractionDigits="2"
-                        :maxFractionDigits="5"
-                    />
+                    <InputNumber v-model="appealAmount.amount" ref="amountInput" placeholder="Enter Amount" class="flex-grow-1" mode="decimal" min="0" step="0.01" :minFractionDigits="2" :maxFractionDigits="5" />
 
                     <!-- Currency Dropdown -->
                     <Dropdown v-model="appealAmount.currency" ref="currencyInput" :options="currencies" optionLabel="name" optionValue="name" placeholder="Select Currency" class="flex-grow-1" />
@@ -543,7 +529,7 @@ function formatAmount(value) {
             <div class="col-12">
                 <label for="appellantList" class="block font-bold mb-2">Search Appeals/Applications From Trab</label>
                 <div class="flex align-items-center gap-3 mb-3">
-                    <Select id="type" v-model="searchCriteria.type" :options="choices" optionValue="id" optionLabel="name" placeholder="Select Type " required filter filterBy="name"  class="flex-grow-1" />
+                    <Select id="type" v-model="searchCriteria.type" :options="choices" optionValue="id" optionLabel="name" placeholder="Select Type " required filter filterBy="name" class="flex-grow-1" />
                     <InputText v-model="searchCriteria.year" type="number" placeholder="Year" class="flex-grow-1" />
                     <InputText v-model="searchCriteria.region" type="text" placeholder="Region" class="flex-grow-1" />
                     <Button label="Search" icon="pi pi-search" @click="searchApplications" class="mt-2" />
@@ -605,51 +591,50 @@ function formatAmount(value) {
     </Dialog>
 
     <Dialog v-model:visible="appealViewDialog" header="Appeal Details" :modal="true" :style="{ width: '650px' }">
-            <!-- Grid Structure: Appeal Details -->
+        <!-- Grid Structure: Appeal Details -->
 
-                <div class="mt-8">
-                    <div class="grid sm:grid-cols-2 gap-4">
-                        <div class="grid grid-cols-2 gap-y-2">
-                            <div><strong>Appeal Number:</strong></div>
-                            <div>:{{ appeal.appealNo }}</div>
+        <div class="mt-8">
+            <div class="grid sm:grid-cols-2 gap-4">
+                <div class="grid grid-cols-2 gap-y-2">
+                    <div><strong>Appeal Number:</strong></div>
+                    <div>:{{ appeal.appealNo }}</div>
 
-                            <div><strong>Date of Filing:</strong></div>
-                            <div>:{{ appeal.dateOfFilling }}</div>
+                    <div><strong>Date of Filing:</strong></div>
+                    <div>:{{ appeal.dateOfFilling }}</div>
 
-                            <div><strong>Date of Decision:</strong></div>
-                            <div>:{{ appeal.dateOfDecision }}</div>
+                    <div><strong>Date of Decision:</strong></div>
+                    <div>:{{ appeal.dateOfDecision }}</div>
 
-                            <div><strong>Date of Concluding:</strong></div>
-                            <div>:{{ appeal.concludingDate }}</div>
+                    <div><strong>Date of Concluding:</strong></div>
+                    <div>:{{ appeal.concludingDate }}</div>
 
-                            <div><strong>Date of Last Order:</strong></div>
-                            <div>:{{ appeal.dateOfLastOrder }}</div>
+                    <div><strong>Date of Last Order:</strong></div>
+                    <div>:{{ appeal.dateOfLastOrder }}</div>
 
-                            <div><strong>Nature of Request:</strong></div>
-                            <div>:{{ appeal.natureOfRequest }}</div>
+                    <div><strong>Nature of Request:</strong></div>
+                    <div>:{{ appeal.natureOfRequest }}</div>
 
-                            <div><strong>Notice:</strong></div>
-                            <div>:{{ appeal.notice.noticeNo }}</div>
+                    <div><strong>Notice:</strong></div>
+                    <div>:{{ appeal.notice.noticeNo }}</div>
 
-                            <div><strong>Tax Information:</strong></div>
-                            <div>:{{ appeal.taxes.name }}</div>
+                    <div><strong>Tax Information:</strong></div>
+                    <div>:{{ appeal.taxes.name }}</div>
 
-                            <div><strong>Status Trend:</strong></div>
-                            <div>:{{ appeal.statusTrend.name }}</div>
-                        </div>
-                    </div>
+                    <div><strong>Status Trend:</strong></div>
+                    <div>:{{ appeal.statusTrend.name }}</div>
                 </div>
-                    <!-- Appeal Details Section (First Column) -->
-            <div class="mt-8">
-                <div class="grid sm:grid-cols-2 gap-4">
-                    <div class="grid grid-cols-2 gap-y-2">
-
-                        <div><strong>Amount List:</strong></div>
-                        <div>
-                            <ul class="p-0 list-none">
-                                <li v-for="(amount, index) in appeal.appealAmount" :key="index">{{formatAmount(amount.amount)}}</li>
-                            </ul>
-                        </div>
+            </div>
+        </div>
+        <!-- Appeal Details Section (First Column) -->
+        <div class="mt-8">
+            <div class="grid sm:grid-cols-2 gap-4">
+                <div class="grid grid-cols-2 gap-y-2">
+                    <div><strong>Amount List:</strong></div>
+                    <div>
+                        <ul class="p-0 list-none">
+                            <li v-for="(amount, index) in appeal.appealAmount" :key="index">{{ formatAmount(amount.amount) }}</li>
+                        </ul>
+                    </div>
 
                     <div><strong>Appellant List:</strong></div>
                     <div>
@@ -665,12 +650,12 @@ function formatAmount(value) {
                         </ul>
                     </div>
                 </div>
-                </div>
             </div>
-                <!-- Second Section (Further Details) -->
-            <div class="mt-6">
-                <div class="grid sm:grid-cols-2 gap-4">
-                    <div class="grid grid-cols-2 gap-y-2">
+        </div>
+        <!-- Second Section (Further Details) -->
+        <div class="mt-6">
+            <div class="grid sm:grid-cols-2 gap-4">
+                <div class="grid grid-cols-2 gap-y-2">
                     <div><strong>Remarks:</strong></div>
                     <div>:{{ appeal.remarks || 'N/A' }}</div>
 
@@ -712,7 +697,7 @@ function formatAmount(value) {
                         </ul>
                     </div>
                 </div>
-                </div>
             </div>
+        </div>
     </Dialog>
 </template>

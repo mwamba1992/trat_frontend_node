@@ -13,17 +13,24 @@ export const SummonsService = {
             });
     },
     createSummons(data) {
-        return api.post('/summons', data)
+        return api
+            .post('/summons', data)
             .then((response) => response.data)
             .catch((error) => {
                 console.error('Error fetching Summons:', error);
                 throw error;
-            });;
+            });
     },
     updateSummons(data) {
         return api.put(`/summons/${data.id}`, data);
     },
     deleteSummons(id) {
         return api.delete(`/summons/${id}`);
+    },
+    concludeSummon (id, data){
+        return api.put(`/summons/${id}/conclude`, data);
+    },
+    filterSummons(data) {
+        return api.post('/summons/filter', data);
     }
 };

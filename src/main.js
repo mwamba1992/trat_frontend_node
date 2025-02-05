@@ -33,7 +33,6 @@ watch(idle, (idleValue) => {
     if (idleValue) {
         // Increment idle trigger count
         inc();
-        console.log(`Idle triggered ${count.value} times`);
 
         // Show idle warning before logging out
         setWarningTimeout();

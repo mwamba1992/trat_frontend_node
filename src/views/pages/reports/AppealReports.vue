@@ -5,7 +5,6 @@ import { FilterMatchMode } from '@primevue/core/api';
 import { AppealService } from '@/service/AppealService';
 import { PartyService } from '@/service/PartyService';
 
-
 const toast = useToast();
 
 // State Variables
@@ -89,30 +88,91 @@ import * as XLSX from 'xlsx';
 function exportCSV() {
     const formattedData = appeals.value.map((appeal) => {
         return {
-            "Appeal No": appeal.appealNo,
-            "Tax Type": appeal.taxes.name,
-            "Date of Filing": appeal.dateOfFilling,
-            "Date of Decision": appeal.dateOfDecision,
-            "Status": appeal.progressStatus,
-            "Applicants": appeal.appellantList && appeal.appellantList.length ? appeal.appellantList.map(a => a.name).join(', ') : 'No Applicants',
-            "Respondents": appeal.respondentList && appeal.respondentList.length ? appeal.respondentList.map(a => a.name).join(', ') : 'No Respondents',
-            "Amounts": appeal.appealAmount && appeal.appealAmount.length ? appeal.appealAmount.map(amount => amount.amount + ' ' + amount.currency.name).join(', ') : 'No Amount',
-            "Remarks": appeal.remarks,
-            "Status Trend": appeal.statusTrend.name
+            'Appeal No': appeal.appealNo,
+            'Tax Type': appeal.taxes.name,
+            'Date of Filing': appeal.dateOfFilling,
+            'Date of Decision': appeal.dateOfDecision,
+            Status: appeal.progressStatus,
+            Applicants: appeal.appellantList && appeal.appellantList.length ? appeal.appellantList.map((a) => a.name).join(', ') : 'No Applicants',
+            Respondents: appeal.respondentList && appeal.respondentList.length ? appeal.respondentList.map((a) => a.name).join(', ') : 'No Respondents',
+            Amounts: appeal.appealAmount && appeal.appealAmount.length ? appeal.appealAmount.map((amount) => amount.amount + ' ' + amount.currency.name).join(', ') : 'No Amount',
+            Remarks: appeal.remarks,
+            'Status Trend': appeal.statusTrend.name
         };
     });
 
     // Create a new workbook and worksheet
     const ws = XLSX.utils.json_to_sheet(formattedData);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Appeals");
+    XLSX.utils.book_append_sheet(wb, ws, 'Appeals');
 
     // Generate the Excel file and trigger download
-    XLSX.writeFile(wb, "Appeals_Report.xlsx");
+    XLSX.writeFile(wb, 'Appeals_Report.xlsx');
 }
 
+function exportPdf() {
+    // Initialize jsPDF with landscape mode and A4 paper size
+    let doc = new jsPDF('l', 'mm', 'a4'); // 'l' for landscape, 'mm' for millimeters, 'a4' size
 
+    // Define the columns for the table
+    let columns = [
+        { title: 'S/No', dataKey: 'id' },
+        { title: 'Appeal No', dataKey: 'appealNo' },
+        { title: 'Appellant', dataKey: 'Appellant' },
+        { title: 'Respondent', dataKey: 'Respondent' },
+        //{ title: 'Amounts', dataKey: 'Amounts' },
+        { title: 'Tax Type', dataKey: 'taxType' },
+        { title: 'Date of Filing', dataKey: 'dateOfFiling' }
+        // { title: 'Date of Decision', dataKey: 'dateOfDecision' },
+        //{ title: 'Status', dataKey: 'progressStatus' },
+        // { title: 'Remarks', dataKey: 'remarks' },
+        // { title: 'Status Trend', dataKey: 'statusTrend' }
+    ];
 
+    // Prepare the rows data
+    let rows = appeals.value.map((appeal, index) => {
+        return {
+            id: index + 1,
+            appealNo: appeal.appealNo,
+            Appellant: appeal.appellantList && appeal.appellantList.length ? appeal.appellantList.map((a) => a.name).join(', ') : 'No Appellant',
+            Respondent: appeal.respondentList && appeal.respondentList.length ? appeal.respondentList.map((a) => a.name).join(', ') : 'No Respondent',
+            //  Amounts: appeal.appealAmount && appeal.appealAmount.length ? appeal.appealAmount.map((amount) => amount.amount + ' ' + amount.currency.name).join(', ') : 'No Amount',
+            taxType: appeal.taxes.name,
+            dateOfFiling: appeal.dateOfFiling
+            //dateOfDecision: appeal.dateOfDecision,
+            //progressStatus: appeal.progressStatus,
+            //remarks: appeal.remarks,
+            //statusTrend: appeal.statusTrend.name
+        };
+    });
+
+    // Increase column widths for landscape mode
+    const columnStyles = {
+        id: { cellWidth: 20 }, // Increased width for S/No
+        appealNo: { cellWidth: 30 }, // Increased width for Appeal No
+        Appellant: { cellWidth: 50 }, // Larger width for Appellant
+        Respondent: { cellWidth: 50 }, // Larger width for Respondent
+        Amounts: { cellWidth: 40 }, // Larger width for Amounts
+        taxType: { cellWidth: 30 }, // Increased width for Tax Type
+        dateOfFiling: { cellWidth: 40 }, // Larger width for Date of Filing
+        dateOfDecision: { cellWidth: 40 }, // Larger width for Date of Decision
+        progressStatus: { cellWidth: 30 }, // Larger width for Status
+        remarks: { cellWidth: 50 }, // Larger width for Remarks
+        statusTrend: { cellWidth: 30 } // Increased width for Status Trend
+    };
+
+    // Add the table to the PDF (with custom column styles and margins)
+    doc.autoTable(columns, rows, {
+        startY: 20, // Start the table below the header (with some padding)
+        columnStyles: columnStyles, // Apply column styles
+        margin: { top: 40, bottom: 30, left: 10, right: 10 }, // Custom margins for landscape
+        theme: 'striped', // Optional theme for the table
+        tableWidth: 'wrap' // Allow table to stretch and fit,
+    });
+
+    // Save the PDF with the desired name
+    doc.save('appeals_landscape.pdf');
+}
 </script>
 
 <template>
@@ -122,7 +182,7 @@ function exportCSV() {
         </template>
 
         <template #end>
-            <Button label="Export Pdf" icon="pi pi-file-pdf" severity="secondary" @click="exportCSV" />
+            <Button label="Export Pdf" icon="pi pi-file-pdf" severity="secondary" @click="exportPdf" />
             <Button label="Export Excel" icon="pi pi-file-excel" severity="secondary" @click="exportCSV" />
         </template>
     </Toolbar>

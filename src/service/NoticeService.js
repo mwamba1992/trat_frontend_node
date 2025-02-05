@@ -42,23 +42,16 @@ export const NoticeService = {
             const response = await api.patch(apiUrl, notice);
 
             if (response.status >= 200 && response.status < 300) {
-                console.log('Notice updated successfully:', response.status);
                 return response.data;
             } else {
-                console.error('Unexpected response status:', response.status);
                 return { error: 'Failed to update notice. Unexpected response status.' };
             }
         } catch (error) {
-            console.error('Error updating notice data:', error);
-
             if (error.response) {
-                console.error('Response error:', error.response.status, error.response.data);
                 return { error: `Failed to update notice. ${error.response.data.message || 'Please try again later.'}` };
             } else if (error.request) {
-                console.error('No response received:', error.request);
                 return { error: 'No response from server. Please check your connection.' };
             } else {
-                console.error('Request setup error:', error.message);
                 return { error: 'An error occurred while setting up the request.' };
             }
         }

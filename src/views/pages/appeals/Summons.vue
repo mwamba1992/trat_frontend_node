@@ -3,9 +3,9 @@ import { SummonsService } from '@/service/SummonsService'; // Service to manage 
 import { useToast } from 'primevue/usetoast';
 import { FilterMatchMode } from '@primevue/core/api';
 import { onMounted, ref } from 'vue';
-import Judge from '@/views/pages/settings/Judge.vue';
 import { JudgeService } from '@/service/JudgeService';
 import { AppealService } from '@/service/AppealService';
+import { ApplicationService } from '@/service/ApplicationService';
 
 const selectedSummons = ref([]);
 const toast = useToast();
@@ -13,8 +13,12 @@ const dt = ref();
 const summons = ref([]);
 const judges = ref([]);
 const appeals = ref([]);
+const applications = ref([]);
 const selectedAppeals = ref([]);
+const selectedApplications = ref([]);
 const summonsDialog = ref(false);
+const showAppeal = ref(false);
+const showApplication = ref(false);
 
 const concludeDialog = ref(false);
 const conclude = ref();
@@ -29,6 +33,7 @@ onMounted(() => {
     SummonsService.getSummons().then((data) => (summons.value = data));
     JudgeService.getJudges().then((data) => (judges.value = data));
     AppealService.getAppeals().then((data) => (appeals.value = data));
+    ApplicationService.getApplications().then((data) => (applications.value = data));
 });
 
 // Summons status options
@@ -39,6 +44,11 @@ const summonsStatus = ref([
     { label: 'Responded', value: 'RESPONDED' }
 ]);
 
+const summonForType = ref([
+    { label: 'Appeals', value: 'Appeals' },
+    { label: 'Applications', value: 'Applications' }
+]);
+
 function exportCSV() {
     dt.value.exportCSV();
 }
@@ -47,6 +57,7 @@ function exportCSV() {
 function openNewSummons() {
     summonsDetails.value = {};
     summonsDetails.value.appeals = [];
+    summonsDetails.value.applications = [];
     submitted.value = false;
     summonsDialog.value = true;
 }
@@ -118,7 +129,12 @@ function saveSummons() {
 function confirmDeleteSummons(summonsData) {
     // Implement delete functionality if necessary
     console.log(`Deleting summons: ${summonsData.id}`);
+    SummonsService.deleteSummons(summonsData.id).then((data) => {
+        summons.value = summons.value.filter((val) => val.id !== summonsData.id);
+        toast.add({ severity: 'success', summary: 'Successful', detail: 'Summons Deleted', life: 3000 });
+    });
 }
+
 function concludeAppeals(summon) {
     summonsDetails.value = { ...summon };
     conclude.value = {};
@@ -138,8 +154,48 @@ function addAppeals() {
     }
 }
 
+function addApplications() {
+    console.log(selectedApplications.value);
+    if (selectedApplications.value) {
+        if (!summonsDetails.value.applications.some((existingAppellant) => existingAppellant.id === selectedApplications.value.id)) {
+            summonsDetails.value.applications.push(selectedApplications.value);
+            selectedApplications.value = null;
+        } else {
+            console.log('Appellant is already in the list.');
+        }
+    } else {
+        console.log('No appellant selected.');
+    }
+}
+
+function onSelectSummon() {
+    console.log(summonsDetails.value.summonType.value);
+    if (summonsDetails.value.summonType.value === 'Appeals') {
+        showAppeal.value = true;
+        showApplication.value = false;
+    } else {
+        showAppeal.value = false;
+        showApplication.value = true;
+    }
+}
+
 function removeAppeals(index) {
     summonsDetails.value.appeals.splice(index, 1);
+}
+
+function submitConcludeDetails() {
+    console.log(summonsDetails.value.id);
+    SummonsService.concludeSummon(summonsDetails.value.id, conclude.value).then((data) => {
+        concludeDialog.value = false;
+        summons.value = [...summons.value]; // Update summons list
+        summonsDetails.value = {}; // Clear the form
+        toast.add({ severity: 'success', summary: 'Successful', detail: 'Summons Concluded', life: 3000 });
+        SummonsService.getSummons().then((data) => (summons.value = data));
+    });
+}
+
+function removeApplications(index) {
+    summonsDetails.value.applications.splice(index, 1);
 }
 </script>
 
@@ -187,7 +243,10 @@ function removeAppeals(index) {
         <Column header="Appeals/Applications" sortable>
             <template #body="slotProps">
                 <span v-if="slotProps.data.appealList && slotProps.data.appealList.length">
-                    {{ slotProps.data.appealList.map((appeal) => appeal.appealNo).join(', ') }}
+                    {{ slotProps.data.appealList.map((appeal) => `Appeal  ${appeal.appealNo}`).join(', ') }}
+                </span>
+                <span v-if="slotProps.data.applicationList && slotProps.data.applicationList.length">
+                    {{ slotProps.data.applicationList.map((appeal) => `Application ${appeal.applicationNo}`).join(', ') }}
                 </span>
             </template>
         </Column>
@@ -195,23 +254,47 @@ function removeAppeals(index) {
             <template #body="slotProps">
                 <Button icon="pi pi-pencil" outlined rounded class="mr-2" @click="editSummons(slotProps.data)" />
                 <Button icon="pi pi-trash" outlined rounded severity="danger" @click="confirmDeleteSummons(slotProps.data)" />
-                <Button icon="pi pi-trash" outlined rounded severity="info" @click="concludeAppeals(slotProps.data)" />
+                <Button icon="pi pi-undo" outlined rounded severity="info" @click="concludeAppeals(slotProps.data)" />
             </template>
         </Column>
     </DataTable>
     <Dialog v-model:visible="summonsDialog" :style="{ width: '700px' }" header="Summons Details" :modal="true">
-        <!-- Appellant List -->
         <div class="col-12">
-            <label for="appellantList" class="block font-bold mb-2">Appeals List</label>
-            <Dropdown v-model="selectedAppeals" :options="appeals" optionLabel="appealNo" multiple placeholder="Select  Appeals" class="w-full" />
-            <Button label="Add  Appeals" icon="pi pi-plus" @click="addAppeals" class="mt-2" />
-            <div class="mt-2">
-                <ul>
-                    <li v-for="(appeal, index) in summonsDetails.appeals" :key="index">
-                        {{ appeal.appealNo }}
-                        <Button icon="pi pi-times" class="p-button-rounded p-button-danger ml-2" @click="removeAppeals(index)" />
-                    </li>
-                </ul>
+            <label for="summonType" class="block font-bold mb-2">Type Of Summons For</label>
+            <Dropdown v-model="summonsDetails.summonType" :options="summonForType" optionLabel="label" model-value="value" multiple placeholder="Select Summons Type" class="w-full" @change="onSelectSummon" />
+        </div>
+
+        <div v-if="showAppeal">
+            <!-- Appellant List -->
+            <div class="col-12">
+                <label for="appellantList" class="block font-bold mb-2">Appeals List</label>
+                <Dropdown v-model="selectedAppeals" :options="appeals" optionLabel="appealNo" multiple placeholder="Select  Appeals" class="w-full" filter />
+                <Button label="Add  Appeals" icon="pi pi-plus" @click="addAppeals" class="mt-2" />
+                <div class="mt-2">
+                    <ul>
+                        <li v-for="(appeal, index) in summonsDetails.appeals" :key="index">
+                            {{ appeal.appealNo }}
+                            <Button icon="pi pi-times" class="p-button-rounded p-button-danger ml-2" @click="removeAppeals(index)" />
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div v-if="showApplication">
+            <!-- Appellant List -->
+            <div class="col-12">
+                <label for="appellantList" class="block font-bold mb-2">Applications List</label>
+                <Dropdown v-model="selectedApplications" :options="applications" optionLabel="applicationNo" multiple placeholder="Select Application" class="w-full" filter />
+                <Button label="Add  Appeals" icon="pi pi-plus" @click="addApplications" class="mt-2" />
+                <div class="mt-2">
+                    <ul>
+                        <li v-for="(appeal, index) in summonsDetails.applications" :key="index">
+                            {{ appeal.applicationNo }}
+                            <Button icon="pi pi-times" class="p-button-rounded p-button-danger ml-2" @click="removeApplications(index)" />
+                        </li>
+                    </ul>
+                </div>
             </div>
         </div>
 
@@ -262,11 +345,20 @@ function removeAppeals(index) {
 
     <Dialog v-model:visible="concludeDialog" :style="{ width: '500px' }" header="Conclude Details" :modal="true">
         <div>
-            <label for="startDate" class="block font-bold mb-3"> {{ summonsDetails.appealList.map((appeal) => appeal.appealNo).join(', ') }}</label>
+            <label for="appealNo" class="block font-bold mb-3">
+                {{ summonsDetails.appealList.map((appeal) => appeal.appealNo).join(', ') }}
+            </label>
         </div>
         <div>
             <label for="startDate" class="block font-bold mb-3">Concluding Date</label>
             <DatePicker id="startDate" v-model.trim="conclude.concludeDate" required="true" fluid />
+        </div>
+        <div class="mt-4">
+            <label for="description" class="block font-bold mb-3">Description</label>
+            <textarea id="description" v-model="conclude.description" rows="4" placeholder="Enter description" class="w-full border p-2"></textarea>
+        </div>
+        <div class="flex justify-end mt-4">
+            <Button label="Submit" @click="submitConcludeDetails" />
         </div>
     </Dialog>
 </template>
