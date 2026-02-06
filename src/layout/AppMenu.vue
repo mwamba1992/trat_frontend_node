@@ -44,7 +44,7 @@ const model = ref([
                 to: '/pages/summons'
             },
             {
-                label: 'Notice High Court',
+                label: 'Notice Court of Appeal',
                 icon: 'pi pi-fw pi-calendar-times',
                 to: '/pages/high'
             }
@@ -69,24 +69,30 @@ const model = ref([
         label: 'SETTINGS',
         items: [
             {
-                label: 'Common Setup',
+                label: 'Common Settings',
                 icon: 'pi pi-fw pi-cog',
-                to: '/common-setup'
-            },
-            {
-                label: 'Judge',
-                icon: 'pi pi-fw pi-id-card',
-                to: '/judges'
-            },
-            {
-                label: 'Parties',
-                icon: 'pi pi-fw pi-id-card',
-                to: '/parties'
-            },
-            {
-                label: 'Fees',
-                icon: 'pi pi-fw pi-cog',
-                to: '/fees'
+                items: [
+                    {
+                        label: 'Common Setup',
+                        icon: 'pi pi-fw pi-cog',
+                        to: '/common-setup'
+                    },
+                    {
+                        label: 'Judge',
+                        icon: 'pi pi-fw pi-id-card',
+                        to: '/judges'
+                    },
+                    {
+                        label: 'Parties',
+                        icon: 'pi pi-fw pi-id-card',
+                        to: '/parties'
+                    },
+                    {
+                        label: 'Fees',
+                        icon: 'pi pi-fw pi-cog',
+                        to: '/fees'
+                    }
+                ]
             },
             {
                 label: 'User Management',
@@ -110,19 +116,25 @@ const model = ref([
         label: 'Reports',
         items: [
             {
-                label: 'Appeal Reports',
+                label: 'Reports',
                 icon: 'pi pi-fw pi-chart-bar',
-                to: '/reports/appeal-reports'
-            },
-            {
-                label: 'Payment Reports',
-                icon: 'pi pi-fw pi-dollar',
-                to: '/reports/payment-reports'
-            },
-            {
-                label: 'Cause List Reports',
-                icon: 'pi pi-fw pi-dollar',
-                to: '/reports/summons-reports'
+                items: [
+                    {
+                        label: 'Appeal Reports',
+                        icon: 'pi pi-fw pi-chart-bar',
+                        to: '/reports/appeal-reports'
+                    },
+                    {
+                        label: 'Payment Reports',
+                        icon: 'pi pi-fw pi-dollar',
+                        to: '/reports/payment-reports'
+                    },
+                    {
+                        label: 'Cause List Reports',
+                        icon: 'pi pi-fw pi-dollar',
+                        to: '/reports/summons-reports'
+                    }
+                ]
             }
         ]
     }

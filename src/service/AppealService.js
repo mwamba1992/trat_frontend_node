@@ -145,7 +145,37 @@ export const AppealService = {
             return response.data;
         } catch (error) {
             console.error('Error fetching appeals summary:', error);
-            throw error; // Propagate the error to the caller
+            throw error;
+        }
+    },
+
+    async getCaseDistribution() {
+        try {
+            const response = await api.get(`${API_URL}/case-distribution`);
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching case distribution:', error);
+            throw error;
+        }
+    },
+
+    async getCaseStatus() {
+        try {
+            const response = await api.get(`${API_URL}/case-status`);
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching case status:', error);
+            throw error;
+        }
+    },
+
+    async getUpcomingHearings() {
+        try {
+            const response = await api.get(`${API_URL}/upcoming-hearings`);
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching upcoming hearings:', error);
+            throw error;
         }
     }
 };
