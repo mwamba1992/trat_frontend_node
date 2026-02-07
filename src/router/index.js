@@ -101,19 +101,24 @@ const router = createRouter({
                     component: () => import('@/views/pages/settings/RoleManagement.vue')
                 },
                 {
+                    path: '/reports',
+                    name: 'reports',
+                    component: () => import('@/views/pages/reports/Reports.vue')
+                },
+                {
                     path: '/reports/appeal-reports',
                     name: 'appealReports',
-                    component: () => import('@/views/pages/reports/AppealReports.vue')
+                    redirect: '/reports'
                 },
                 {
                     path: '/reports/payment-reports',
                     name: 'paymentReports',
-                    component: () => import('@/views/pages/reports/PaymentReports.vue')
+                    redirect: '/reports'
                 },
                 {
                     path: '/reports/summons-reports',
                     name: 'Cause List',
-                    component: () => import('@/views/pages/reports/SummonReports.vue')
+                    redirect: '/reports'
                 }
             ]
         },

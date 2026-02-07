@@ -1,18 +1,18 @@
 .layout-sidebar {
     position: fixed;
     width: 20rem;
-    height: calc(100vh - 8rem);
+    height: calc(100vh - 4rem);
     z-index: 999;
     overflow-y: auto;
     user-select: none;
-    top: 6rem;
-    left: 2rem;
+    top: 4rem;
+    left: 0;
     transition:
         transform var(--layout-section-transition-duration),
         left var(--layout-section-transition-duration);
     background-color: var(--surface-overlay);
-    border-radius: var(--content-border-radius);
-    padding: 0.5rem 1.5rem;
+    border-right: 1px solid var(--surface-border);
+    padding: 1rem 1rem;
 }
 
 .layout-menu {
@@ -22,11 +22,23 @@
 
     .layout-root-menuitem {
         > .layout-menuitem-root-text {
-            font-size: 0.857rem;
+            font-size: 0.6875rem;
             text-transform: uppercase;
-            font-weight: 700;
-            color: var(--text-color);
-            margin: 0.75rem 0;
+            font-weight: 600;
+            color: var(--text-color-secondary);
+            margin: 1.25rem 0 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            letter-spacing: 0.08em;
+
+            &::before,
+            &::after {
+                content: '';
+                flex: 1;
+                height: 1px;
+                background-color: var(--surface-border);
+            }
         }
 
         > a {
@@ -64,28 +76,60 @@
             outline: 0 none;
             color: var(--text-color);
             cursor: pointer;
-            padding: 0.75rem 1rem;
+            padding: 0.625rem 1rem;
             border-radius: var(--content-border-radius);
             transition:
-                background-color var(--element-transition-duration),
-                box-shadow var(--element-transition-duration);
+                background-color 0.2s ease,
+                color 0.2s ease,
+                box-shadow 0.2s ease;
+            font-size: 0.9375rem;
 
             .layout-menuitem-icon {
-                margin-right: 0.5rem;
+                margin-right: 0.625rem;
+                font-size: 1.125rem;
+                color: var(--text-color-secondary);
+                transition: color 0.2s ease;
             }
 
             .layout-submenu-toggler {
                 font-size: 75%;
                 margin-left: auto;
-                transition: transform var(--element-transition-duration);
+                transition: transform 0.3s ease;
+                color: var(--text-color-secondary);
             }
 
             &.active-route {
                 font-weight: 700;
                 color: var(--primary-color);
+                background-color: color-mix(in srgb, var(--primary-color) 8%, transparent);
+                position: relative;
+
+                .layout-menuitem-icon {
+                    color: var(--primary-color);
+                }
+
+                &::before {
+                    content: '';
+                    position: absolute;
+                    left: 0;
+                    top: 15%;
+                    height: 70%;
+                    width: 4px;
+                    border-radius: 0 4px 4px 0;
+                    background-color: var(--primary-color);
+                }
+
+                &::after {
+                    content: '\e946';
+                    font-family: 'primeicons';
+                    position: absolute;
+                    right: 0.75rem;
+                    font-size: 0.5rem;
+                    color: var(--primary-color);
+                }
             }
 
-            &:hover {
+            &:hover:not(.active-route) {
                 background-color: var(--surface-hover);
             }
 

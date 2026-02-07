@@ -57,7 +57,7 @@ function logout() {
 
                 <!-- User Profile Section -->
                 <div class="flex items-center gap-3 cursor-pointer relative" @click="toggleUserMenu">
-                    <div class="flex items-center justify-center rounded-full bg-blue-500 text-white font-bold" style="width: 2.2rem; height: 2.2rem">
+                    <div class="flex items-center justify-center rounded-full text-white font-bold" style="width: 2.2rem; height: 2.2rem; background: linear-gradient(135deg, #10b981, #047857)">
                         {{ userInitial }}
                     </div>
                     <div class="flex flex-col">

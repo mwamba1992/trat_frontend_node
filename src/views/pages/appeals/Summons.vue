@@ -1,138 +1,121 @@
 <script setup>
-import { SummonsService } from '@/service/SummonsService'; // Service to manage summons
+import { SummonsService } from '@/service/SummonsService';
 import { useToast } from 'primevue/usetoast';
 import { FilterMatchMode } from '@primevue/core/api';
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, computed } from 'vue';
 import { JudgeService } from '@/service/JudgeService';
 import { AppealService } from '@/service/AppealService';
 import { ApplicationService } from '@/service/ApplicationService';
 
-const selectedSummons = ref([]);
 const toast = useToast();
 const dt = ref();
+
 const summons = ref([]);
 const judges = ref([]);
 const appeals = ref([]);
 const applications = ref([]);
-const selectedAppeals = ref([]);
-const selectedApplications = ref([]);
+const selectedAppeals = ref(null);
+const selectedApplications = ref(null);
+
 const summonsDialog = ref(false);
+const deleteDialog = ref(false);
+const concludeDialog = ref(false);
+
 const showAppeal = ref(false);
 const showApplication = ref(false);
 
-const concludeDialog = ref(false);
-const conclude = ref();
-
 const summonsDetails = ref({});
+const conclude = ref({});
 const submitted = ref(false);
+
 const filters = ref({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS }
 });
-
-onMounted(() => {
-    SummonsService.getSummons().then((data) => (summons.value = data));
-    JudgeService.getJudges().then((data) => (judges.value = data));
-    AppealService.getAppeals().then((data) => (appeals.value = data));
-    ApplicationService.getApplications().then((data) => (applications.value = data));
-});
-
-// Summons status options
-const summonsStatus = ref([
-    { label: 'Pending', value: 'PENDING' },
-    { label: 'Served', value: 'SERVED' },
-    { label: 'Dismissed', value: 'DISMISSED' },
-    { label: 'Responded', value: 'RESPONDED' }
-]);
 
 const summonForType = ref([
     { label: 'Appeals', value: 'Appeals' },
     { label: 'Applications', value: 'Applications' }
 ]);
 
-function exportCSV() {
-    dt.value.exportCSV();
-}
+const totalSummons = computed(() => summons.value.length);
+const pendingSummons = computed(() => summons.value.filter((s) => s.status === 'PENDING').length);
+const servedSummons = computed(() => summons.value.filter((s) => s.status === 'SERVED').length);
+const respondedSummons = computed(() => summons.value.filter((s) => s.status === 'RESPONDED').length);
 
-// Open dialog to create a new summons
+onMounted(() => {
+    SummonsService.getSummons().then((data) => (summons.value = data || []));
+    JudgeService.getJudges().then((data) => (judges.value = data || []));
+    AppealService.getAppeals().then((data) => (appeals.value = data || []));
+    ApplicationService.getApplications().then((data) => (applications.value = data || []));
+});
+
 function openNewSummons() {
-    summonsDetails.value = {};
-    summonsDetails.value.appeals = [];
-    summonsDetails.value.applications = [];
+    summonsDetails.value = { appeals: [], applications: [] };
+    showAppeal.value = false;
+    showApplication.value = false;
     submitted.value = false;
     summonsDialog.value = true;
 }
 
-// Edit existing summons
 function editSummons(summonsData) {
     summonsDetails.value = { ...summonsData };
-    summonsDetails.value.judge = summonsData.judge.id;
-    summonsDetails.value.appeals = summonsData.appealList;
+    summonsDetails.value.judge = summonsData.judge?.id;
+    summonsDetails.value.appeals = summonsData.appealList || [];
+    summonsDetails.value.applications = summonsData.applicationList || [];
     summonsDetails.value.member1 = summonsData.member1;
     summonsDetails.value.member2 = summonsData.member2;
+
+    if (summonsDetails.value.appeals?.length) {
+        showAppeal.value = true;
+        showApplication.value = false;
+        summonsDetails.value.summonType = { label: 'Appeals', value: 'Appeals' };
+    } else if (summonsDetails.value.applications?.length) {
+        showAppeal.value = false;
+        showApplication.value = true;
+        summonsDetails.value.summonType = { label: 'Applications', value: 'Applications' };
+    }
+
+    submitted.value = false;
     summonsDialog.value = true;
 }
 
-// Save summons (either create or update)
-function saveSummons() {
-    submitted.value = true;
-
-    // Ensure necessary fields are filled
-
-    if (summonsDetails.value.id) {
-        SummonsService.updateSummons(summonsDetails.value)
-            .then((data) => {
-                if (data.error) {
-                    toast.add({ severity: 'error', summary: 'Error', detail: data.error, life: 3000 });
-                } else {
-                    summonsDialog.value = false;
-                    summons.value = [...summons.value]; // Update summons list
-                    summonsDetails.value = {}; // Clear the form
-                    toast.add({ severity: 'success', summary: 'Successful', detail: 'Summons Updated', life: 3000 });
-                    SummonsService.getSummons().then((data) => (summons.value = data));
-                }
-            })
-            .catch((error) => {
-                console.error('Unexpected error:', error);
-                toast.add({
-                    severity: 'error',
-                    summary: 'Error',
-                    detail: 'An unexpected error occurred. Please try again later.',
-                    life: 3000
-                });
-            });
-    } else {
-        SummonsService.createSummons(summonsDetails.value)
-            .then((data) => {
-                if (data.error) {
-                    toast.add({ severity: 'error', summary: 'Error', detail: data.error, life: 3000 });
-                } else {
-                    summonsDialog.value = false;
-                    summons.value = [...summons.value]; // Update summons list
-                    summonsDetails.value = {}; // Clear the form
-                    toast.add({ severity: 'success', summary: 'Successful', detail: 'Summons Created', life: 3000 });
-                    SummonsService.getSummons().then((data) => (summons.value = data));
-                }
-            })
-            .catch((error) => {
-                console.error('Unexpected error:', error);
-                toast.add({
-                    severity: 'error',
-                    summary: 'Error',
-                    detail: 'An unexpected error occurred. Please try again later.',
-                    life: 3000
-                });
-            });
-    }
+function confirmDelete(summonsData) {
+    summonsDetails.value = { ...summonsData };
+    deleteDialog.value = true;
 }
 
-// Delete summons
-function confirmDeleteSummons(summonsData) {
-    // Implement delete functionality if necessary
-    console.log(`Deleting summons: ${summonsData.id}`);
-    SummonsService.deleteSummons(summonsData.id).then((data) => {
-        summons.value = summons.value.filter((val) => val.id !== summonsData.id);
-        toast.add({ severity: 'success', summary: 'Successful', detail: 'Summons Deleted', life: 3000 });
-    });
+function saveSummons() {
+    submitted.value = true;
+    if (!summonsDetails.value.startDate || !summonsDetails.value.endDate || !summonsDetails.value.judge) return;
+
+    const action = summonsDetails.value.id ? 'updateSummons' : 'createSummons';
+
+    SummonsService[action](summonsDetails.value)
+        .then((data) => {
+            const result = data?.data || data;
+            if (result?.error) {
+                toast.add({ severity: 'error', summary: 'Error', detail: result.error, life: 3000 });
+            } else {
+                toast.add({ severity: 'success', summary: 'Success', detail: summonsDetails.value.id ? 'Summons updated successfully' : 'Summons created successfully', life: 3000 });
+                summonsDialog.value = false;
+                SummonsService.getSummons().then((data) => (summons.value = data || []));
+            }
+        })
+        .catch(() => {
+            toast.add({ severity: 'error', summary: 'Error', detail: 'An unexpected error occurred. Please try again later.', life: 3000 });
+        });
+}
+
+function deleteSummons() {
+    SummonsService.deleteSummons(summonsDetails.value.id)
+        .then(() => {
+            toast.add({ severity: 'success', summary: 'Deleted', detail: 'Summons deleted successfully', life: 3000 });
+            deleteDialog.value = false;
+            SummonsService.getSummons().then((data) => (summons.value = data || []));
+        })
+        .catch(() => {
+            toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to delete summons', life: 3000 });
+        });
 }
 
 function concludeAppeals(summon) {
@@ -141,224 +124,404 @@ function concludeAppeals(summon) {
     concludeDialog.value = true;
 }
 
-function addAppeals() {
-    if (selectedAppeals.value) {
-        if (!summonsDetails.value.appeals.some((existingAppellant) => existingAppellant.id === selectedAppeals.value.id)) {
-            summonsDetails.value.appeals.push(selectedAppeals.value);
-            selectedAppeals.value = null;
-        } else {
-            console.log('Appellant is already in the list.');
-        }
-    } else {
-        console.log('No appellant selected.');
-    }
-}
-
-function addApplications() {
-    console.log(selectedApplications.value);
-    if (selectedApplications.value) {
-        if (!summonsDetails.value.applications.some((existingAppellant) => existingAppellant.id === selectedApplications.value.id)) {
-            summonsDetails.value.applications.push(selectedApplications.value);
-            selectedApplications.value = null;
-        } else {
-            console.log('Appellant is already in the list.');
-        }
-    } else {
-        console.log('No appellant selected.');
-    }
+function submitConcludeDetails() {
+    SummonsService.concludeSummon(summonsDetails.value.id, conclude.value)
+        .then(() => {
+            concludeDialog.value = false;
+            toast.add({ severity: 'success', summary: 'Success', detail: 'Summons concluded successfully', life: 3000 });
+            SummonsService.getSummons().then((data) => (summons.value = data || []));
+        })
+        .catch(() => {
+            toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to conclude summons', life: 3000 });
+        });
 }
 
 function onSelectSummon() {
-    console.log(summonsDetails.value.summonType.value);
-    if (summonsDetails.value.summonType.value === 'Appeals') {
-        showAppeal.value = true;
-        showApplication.value = false;
-    } else {
-        showAppeal.value = false;
-        showApplication.value = true;
+    const type = summonsDetails.value.summonType?.value;
+    showAppeal.value = type === 'Appeals';
+    showApplication.value = type === 'Applications';
+}
+
+function addAppeals() {
+    if (!selectedAppeals.value) return;
+    if (!summonsDetails.value.appeals) summonsDetails.value.appeals = [];
+    if (!summonsDetails.value.appeals.some((a) => a.id === selectedAppeals.value.id)) {
+        summonsDetails.value.appeals.push(selectedAppeals.value);
     }
+    selectedAppeals.value = null;
+}
+
+function addApplications() {
+    if (!selectedApplications.value) return;
+    if (!summonsDetails.value.applications) summonsDetails.value.applications = [];
+    if (!summonsDetails.value.applications.some((a) => a.id === selectedApplications.value.id)) {
+        summonsDetails.value.applications.push(selectedApplications.value);
+    }
+    selectedApplications.value = null;
 }
 
 function removeAppeals(index) {
     summonsDetails.value.appeals.splice(index, 1);
 }
 
-function submitConcludeDetails() {
-    console.log(summonsDetails.value.id);
-    SummonsService.concludeSummon(summonsDetails.value.id, conclude.value).then((data) => {
-        concludeDialog.value = false;
-        summons.value = [...summons.value]; // Update summons list
-        summonsDetails.value = {}; // Clear the form
-        toast.add({ severity: 'success', summary: 'Successful', detail: 'Summons Concluded', life: 3000 });
-        SummonsService.getSummons().then((data) => (summons.value = data));
-    });
-}
-
 function removeApplications(index) {
     summonsDetails.value.applications.splice(index, 1);
+}
+
+function exportCSV() {
+    dt.value.exportCSV();
+}
+
+function getInitials(name) {
+    if (!name) return '?';
+    return name.split(' ').map((n) => n[0]).join('').substring(0, 2).toUpperCase();
+}
+
+function formatDate(date) {
+    if (!date) return '—';
+    return new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function getStatusSeverity(status) {
+    switch (status) {
+        case 'SERVED': return 'success';
+        case 'RESPONDED': return 'info';
+        case 'DISMISSED': return 'danger';
+        default: return 'warn';
+    }
 }
 </script>
 
 <template>
-    <Toolbar class="mb-6">
-        <template #start>
-            <Button label="New Summons" icon="pi pi-plus" class="mr-2" @click="openNewSummons" />
-        </template>
+    <!-- Page Header -->
+    <div class="flex justify-between items-start mb-6">
+        <div>
+            <h1 class="text-3xl font-bold text-surface-900 dark:text-surface-0 m-0">Summons Management</h1>
+            <p class="text-muted-color mt-1">Create and manage court hearing summons</p>
+        </div>
+    </div>
 
-        <template #end>
-            <Button label="Export" icon="pi pi-upload" severity="secondary" @click="exportCSV" />
-        </template>
-    </Toolbar>
+    <!-- Stats -->
+    <div class="grid grid-cols-12 gap-4 mb-4">
+        <div class="col-span-12 md:col-span-3">
+            <div class="card mb-0">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <span class="block text-muted-color font-medium mb-1">Total Summons</span>
+                        <div class="text-surface-900 dark:text-surface-0 font-bold text-2xl">{{ totalSummons }}</div>
+                    </div>
+                    <div class="flex items-center justify-center rounded-border" style="width: 2.5rem; height: 2.5rem; background: linear-gradient(135deg, #ede9fe, #ddd6fe)">
+                        <i class="pi pi-calendar-times text-purple-500"></i>
+                    </div>
+                </div>
+                <span class="text-muted-color text-sm mt-2 block">All hearings</span>
+            </div>
+        </div>
+        <div class="col-span-12 md:col-span-3">
+            <div class="card mb-0">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <span class="block text-muted-color font-medium mb-1">Pending</span>
+                        <div class="text-surface-900 dark:text-surface-0 font-bold text-2xl">{{ pendingSummons }}</div>
+                    </div>
+                    <div class="flex items-center justify-center rounded-border" style="width: 2.5rem; height: 2.5rem; background: linear-gradient(135deg, #fefce8, #fde68a)">
+                        <i class="pi pi-clock text-yellow-600"></i>
+                    </div>
+                </div>
+                <span class="text-muted-color text-sm mt-2 block">Awaiting service</span>
+            </div>
+        </div>
+        <div class="col-span-12 md:col-span-3">
+            <div class="card mb-0">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <span class="block text-muted-color font-medium mb-1">Served</span>
+                        <div class="text-surface-900 dark:text-surface-0 font-bold text-2xl">{{ servedSummons }}</div>
+                    </div>
+                    <div class="flex items-center justify-center rounded-border" style="width: 2.5rem; height: 2.5rem; background: linear-gradient(135deg, #ecfdf5, #d1fae5)">
+                        <i class="pi pi-send text-emerald-500"></i>
+                    </div>
+                </div>
+                <span class="text-muted-color text-sm mt-2 block">Successfully served</span>
+            </div>
+        </div>
+        <div class="col-span-12 md:col-span-3">
+            <div class="card mb-0">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <span class="block text-muted-color font-medium mb-1">Responded</span>
+                        <div class="text-surface-900 dark:text-surface-0 font-bold text-2xl">{{ respondedSummons }}</div>
+                    </div>
+                    <div class="flex items-center justify-center rounded-border" style="width: 2.5rem; height: 2.5rem; background: linear-gradient(135deg, #eff6ff, #dbeafe)">
+                        <i class="pi pi-check-circle text-blue-500"></i>
+                    </div>
+                </div>
+                <span class="text-muted-color text-sm mt-2 block">Responses received</span>
+            </div>
+        </div>
+    </div>
 
-    <DataTable
-        ref="dt"
-        v-model:selection="selectedSummons"
-        :value="summons"
-        dataKey="id"
-        :paginator="true"
-        :rows="10"
-        :filters="filters"
-        paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
-        :rowsPerPageOptions="[5, 10, 25]"
-        currentPageReportTemplate="Showing {first} to {last} of {totalRecords} summons"
-        scrollable="false"
-    >
-        <template #header>
-            <div class="flex flex-wrap gap-2 items-center justify-between">
-                <h4 class="m-0">Manage Summons</h4>
+    <!-- Data Table -->
+    <div class="card">
+        <!-- Action Bar -->
+        <div class="flex justify-between items-center mb-4">
+            <Button label="New Summons" icon="pi pi-plus" class="p-button-success" @click="openNewSummons" />
+            <div class="flex gap-2">
                 <IconField>
-                    <InputIcon>
-                        <i class="pi pi-search" />
-                    </InputIcon>
-                    <InputText v-model="filters['global'].value" placeholder="Search..." />
+                    <InputIcon><i class="pi pi-search" /></InputIcon>
+                    <InputText v-model="filters['global'].value" placeholder="Search summons..." />
                 </IconField>
+                <Button label="Export" icon="pi pi-upload" severity="secondary" text @click="exportCSV" />
             </div>
-        </template>
-
-        <Column selectionMode="multiple" style="width: 3rem" :exportable="false"></Column>
-        <Column field="judge.name" header="Chairman" sortable></Column>
-        <Column field="startDate" header="Start Date" sortable></Column>
-        <Column field="endDate" header="End Date" sortable></Column>
-        <Column field="status" header="Status" sortable></Column>
-        <Column header="Appeals/Applications" sortable>
-            <template #body="slotProps">
-                <span v-if="slotProps.data.appealList && slotProps.data.appealList.length">
-                    {{ slotProps.data.appealList.map((appeal) => `Appeal  ${appeal.appealNo}`).join(', ') }}
-                </span>
-                <span v-if="slotProps.data.applicationList && slotProps.data.applicationList.length">
-                    {{ slotProps.data.applicationList.map((appeal) => `Application ${appeal.applicationNo}`).join(', ') }}
-                </span>
-            </template>
-        </Column>
-        <Column style="min-width: 12rem">
-            <template #body="slotProps">
-                <Button icon="pi pi-pencil" outlined rounded class="mr-2" @click="editSummons(slotProps.data)" />
-                <Button icon="pi pi-trash" outlined rounded severity="danger" @click="confirmDeleteSummons(slotProps.data)" />
-                <Button icon="pi pi-undo" outlined rounded severity="info" @click="concludeAppeals(slotProps.data)" />
-            </template>
-        </Column>
-    </DataTable>
-    <Dialog v-model:visible="summonsDialog" :style="{ width: '700px' }" header="Summons Details" :modal="true">
-        <div class="col-12">
-            <label for="summonType" class="block font-bold mb-2">Type Of Summons For</label>
-            <Dropdown v-model="summonsDetails.summonType" :options="summonForType" optionLabel="label" model-value="value" multiple placeholder="Select Summons Type" class="w-full" @change="onSelectSummon" />
         </div>
 
-        <div v-if="showAppeal">
-            <!-- Appellant List -->
-            <div class="col-12">
-                <label for="appellantList" class="block font-bold mb-2">Appeals List</label>
-                <Dropdown v-model="selectedAppeals" :options="appeals" optionLabel="appealNo" multiple placeholder="Select  Appeals" class="w-full" filter />
-                <Button label="Add  Appeals" icon="pi pi-plus" @click="addAppeals" class="mt-2" />
-                <div class="mt-2">
-                    <ul>
-                        <li v-for="(appeal, index) in summonsDetails.appeals" :key="index">
+        <DataTable
+            ref="dt"
+            :value="summons"
+            dataKey="id"
+            :paginator="true"
+            :rows="10"
+            :filters="filters"
+            :rowsPerPageOptions="[5, 10, 25]"
+            paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
+            currentPageReportTemplate="Showing {first} to {last} of {totalRecords} summons"
+            stripedRows
+        >
+            <template #empty>
+                <div class="flex flex-col items-center justify-center py-8">
+                    <i class="pi pi-calendar-times text-4xl text-muted-color mb-3"></i>
+                    <span class="text-muted-color">No summons found</span>
+                </div>
+            </template>
+
+            <Column header="No" style="width: 4rem">
+                <template #body="slotProps">
+                    <span class="text-muted-color font-medium">{{ slotProps.index + 1 }}</span>
+                </template>
+            </Column>
+
+            <Column field="judge.name" header="Chairman" sortable style="min-width: 14rem">
+                <template #body="slotProps">
+                    <div class="flex items-center gap-3">
+                        <div class="flex items-center justify-center rounded-full font-bold text-xs text-white" style="width: 2.2rem; height: 2.2rem; background: linear-gradient(135deg, #10b981, #059669)">
+                            {{ getInitials(slotProps.data.judge?.name) }}
+                        </div>
+                        <span class="font-medium text-surface-900 dark:text-surface-0">{{ slotProps.data.judge?.name || '—' }}</span>
+                    </div>
+                </template>
+            </Column>
+
+            <Column field="startDate" header="Start Date" sortable style="min-width: 10rem">
+                <template #body="slotProps">
+                    <div class="flex items-center gap-2">
+                        <i class="pi pi-calendar text-muted-color text-xs"></i>
+                        <span>{{ formatDate(slotProps.data.startDate) }}</span>
+                    </div>
+                </template>
+            </Column>
+
+            <Column field="endDate" header="End Date" sortable style="min-width: 10rem">
+                <template #body="slotProps">
+                    <div class="flex items-center gap-2">
+                        <i class="pi pi-calendar text-muted-color text-xs"></i>
+                        <span>{{ formatDate(slotProps.data.endDate) }}</span>
+                    </div>
+                </template>
+            </Column>
+
+            <Column field="status" header="Status" sortable style="min-width: 8rem">
+                <template #body="slotProps">
+                    <Tag :value="slotProps.data.status || 'PENDING'" :severity="getStatusSeverity(slotProps.data.status)" rounded />
+                </template>
+            </Column>
+
+            <Column header="Appeals/Applications" style="min-width: 16rem">
+                <template #body="slotProps">
+                    <div class="flex flex-wrap gap-1">
+                        <Tag v-for="appeal in (slotProps.data.appealList || [])" :key="'a-' + appeal.id" severity="info" rounded>
+                            <span class="flex items-center gap-1">
+                                <i class="pi pi-file text-xs"></i>
+                                {{ appeal.appealNo }}
+                            </span>
+                        </Tag>
+                        <Tag v-for="app in (slotProps.data.applicationList || [])" :key="'app-' + app.id" severity="success" rounded>
+                            <span class="flex items-center gap-1">
+                                <i class="pi pi-briefcase text-xs"></i>
+                                {{ app.applicationNo }}
+                            </span>
+                        </Tag>
+                        <span v-if="!(slotProps.data.appealList?.length || slotProps.data.applicationList?.length)" class="text-muted-color">—</span>
+                    </div>
+                </template>
+            </Column>
+
+            <Column header="Actions" style="min-width: 14rem">
+                <template #body="slotProps">
+                    <div class="flex gap-1">
+                        <Button icon="pi pi-pencil" label="Edit" text rounded class="p-button-success" size="small" @click="editSummons(slotProps.data)" />
+                        <Button icon="pi pi-trash" text rounded severity="danger" size="small" @click="confirmDelete(slotProps.data)" />
+                        <Button icon="pi pi-check-square" label="Conclude" text rounded severity="info" size="small" @click="concludeAppeals(slotProps.data)" />
+                    </div>
+                </template>
+            </Column>
+        </DataTable>
+    </div>
+
+    <!-- Create/Edit Summons Dialog -->
+    <Dialog v-model:visible="summonsDialog" :style="{ width: '750px' }" header="Summons Details" :modal="true">
+        <div class="flex flex-col gap-5">
+            <!-- Sub-header -->
+            <div class="flex items-center gap-3 pb-3" style="border-left: 4px solid #10b981; padding-left: 12px">
+                <div>
+                    <div class="font-semibold text-surface-900 dark:text-surface-0">{{ summonsDetails.id ? 'Update Summons' : 'Create New Summons' }}</div>
+                    <div class="text-muted-color text-sm">Fill in the details to create or update a court summons</div>
+                </div>
+            </div>
+
+            <!-- Type Of Summons -->
+            <div>
+                <label class="block font-medium mb-2"><i class="pi pi-list mr-2 text-muted-color"></i>Type Of Summons For <span class="text-red-500">*</span></label>
+                <Select v-model="summonsDetails.summonType" :options="summonForType" optionLabel="label" placeholder="Select Summons Type" fluid @change="onSelectSummon" :invalid="submitted && !summonsDetails.summonType" />
+                <small v-if="submitted && !summonsDetails.summonType" class="text-red-500">Summons type is required.</small>
+            </div>
+
+            <!-- Appeals List -->
+            <div v-if="showAppeal">
+                <label class="block font-medium mb-2"><i class="pi pi-file mr-2 text-muted-color"></i>Appeals List</label>
+                <div class="flex gap-2">
+                    <Select v-model="selectedAppeals" :options="appeals" optionLabel="appealNo" placeholder="Select Appeal" filter class="flex-1" />
+                    <Button icon="pi pi-plus" class="p-button-success" @click="addAppeals" />
+                </div>
+                <div v-if="summonsDetails.appeals?.length" class="flex flex-wrap gap-2 mt-3">
+                    <Tag v-for="(appeal, index) in summonsDetails.appeals" :key="index" severity="info" rounded>
+                        <span class="flex items-center gap-2">
+                            <i class="pi pi-file text-xs"></i>
                             {{ appeal.appealNo }}
-                            <Button icon="pi pi-times" class="p-button-rounded p-button-danger ml-2" @click="removeAppeals(index)" />
-                        </li>
-                    </ul>
+                            <i class="pi pi-times text-xs cursor-pointer" @click="removeAppeals(index)"></i>
+                        </span>
+                    </Tag>
                 </div>
             </div>
-        </div>
 
-        <div v-if="showApplication">
-            <!-- Appellant List -->
-            <div class="col-12">
-                <label for="appellantList" class="block font-bold mb-2">Applications List</label>
-                <Dropdown v-model="selectedApplications" :options="applications" optionLabel="applicationNo" multiple placeholder="Select Application" class="w-full" filter />
-                <Button label="Add  Appeals" icon="pi pi-plus" @click="addApplications" class="mt-2" />
-                <div class="mt-2">
-                    <ul>
-                        <li v-for="(appeal, index) in summonsDetails.applications" :key="index">
-                            {{ appeal.applicationNo }}
-                            <Button icon="pi pi-times" class="p-button-rounded p-button-danger ml-2" @click="removeApplications(index)" />
-                        </li>
-                    </ul>
+            <!-- Applications List -->
+            <div v-if="showApplication">
+                <label class="block font-medium mb-2"><i class="pi pi-briefcase mr-2 text-muted-color"></i>Applications List</label>
+                <div class="flex gap-2">
+                    <Select v-model="selectedApplications" :options="applications" optionLabel="applicationNo" placeholder="Select Application" filter class="flex-1" />
+                    <Button icon="pi pi-plus" class="p-button-success" @click="addApplications" />
+                </div>
+                <div v-if="summonsDetails.applications?.length" class="flex flex-wrap gap-2 mt-3">
+                    <Tag v-for="(app, index) in summonsDetails.applications" :key="index" severity="success" rounded>
+                        <span class="flex items-center gap-2">
+                            <i class="pi pi-briefcase text-xs"></i>
+                            {{ app.applicationNo }}
+                            <i class="pi pi-times text-xs cursor-pointer" @click="removeApplications(index)"></i>
+                        </span>
+                    </Tag>
                 </div>
             </div>
-        </div>
 
-        <div class="flex flex-col gap-6">
-            <div>
-                <label for="startDate" class="block font-bold mb-3">Start Date</label>
-                <DatePicker id="startDate" v-model.trim="summonsDetails.startDate" required="true" :invalid="submitted && !summonsDetails.startDate" fluid />
-                <small v-if="submitted && !summonsDetails.startDate" class="text-red-500">Start date is required.</small>
+            <!-- Start Date + End Date -->
+            <div class="grid grid-cols-12 gap-4">
+                <div class="col-span-6">
+                    <label class="block font-medium mb-2"><i class="pi pi-calendar mr-2 text-muted-color"></i>Start Date <span class="text-red-500">*</span></label>
+                    <DatePicker v-model="summonsDetails.startDate" placeholder="Select date" dateFormat="yy-mm-dd" showIcon :showOnFocus="false" fluid :invalid="submitted && !summonsDetails.startDate" />
+                    <small v-if="submitted && !summonsDetails.startDate" class="text-red-500">Start date is required.</small>
+                </div>
+                <div class="col-span-6">
+                    <label class="block font-medium mb-2"><i class="pi pi-calendar mr-2 text-muted-color"></i>End Date <span class="text-red-500">*</span></label>
+                    <DatePicker v-model="summonsDetails.endDate" placeholder="Select date" dateFormat="yy-mm-dd" showIcon :showOnFocus="false" fluid :invalid="submitted && !summonsDetails.endDate" />
+                    <small v-if="submitted && !summonsDetails.endDate" class="text-red-500">End date is required.</small>
+                </div>
             </div>
 
-            <div>
-                <label for="endDate" class="block font-bold mb-3">End Date</label>
-                <DatePicker id="endDate" v-model.trim="summonsDetails.endDate" required="true" :invalid="submitted && !summonsDetails.endDate" fluid />
-                <small v-if="submitted && !summonsDetails.endDate" class="text-red-500">End date is required.</small>
+            <!-- Venue + Time -->
+            <div class="grid grid-cols-12 gap-4">
+                <div class="col-span-6">
+                    <label class="block font-medium mb-2"><i class="pi pi-map-marker mr-2 text-muted-color"></i>Venue</label>
+                    <InputText v-model="summonsDetails.venue" placeholder="Enter venue location" fluid />
+                </div>
+                <div class="col-span-6">
+                    <label class="block font-medium mb-2"><i class="pi pi-clock mr-2 text-muted-color"></i>Time</label>
+                    <DatePicker v-model="summonsDetails.time" placeholder="Select time" timeOnly fluid />
+                </div>
             </div>
 
-            <div>
-                <label for="venue" class="block font-bold mb-3">Venue</label>
-                <InputText id="venue" v-model="summonsDetails.venue" fluid />
-            </div>
-
-            <div>
-                <label for="judge" class="block font-bold mb-3">ChairMan</label>
-                <Select id="type" v-model="summonsDetails.judge" :options="judges" optionValue="id" optionLabel="name" placeholder="Select  Chairman" required class="w-full" />
-            </div>
-
-            <div>
-                <label for="judge" class="block font-bold mb-3">Member 1</label>
-                <Select id="type" v-model="summonsDetails.member1" :options="judges" optionValue="id" optionLabel="name" placeholder="Select Member1" required class="w-full" />
-            </div>
-
-            <div>
-                <label for="judge" class="block font-bold mb-3">Member 2</label>
-                <Select id="type" v-model="summonsDetails.member2" :options="judges" optionValue="id" optionLabel="name" placeholder="Select Member2" required class="w-full" />
-            </div>
-
-            <div>
-                <label for="time" class="block font-bold mb-3">Time</label>
-                <DatePicker id="time" v-model="summonsDetails.time" fluid timeOnly />
+            <!-- Panel Members Section -->
+            <div class="border rounded-border p-4" style="background: linear-gradient(135deg, #f0fdf4, #fefefe)">
+                <div class="flex items-center gap-2 mb-4">
+                    <i class="pi pi-users text-emerald-600"></i>
+                    <span class="font-semibold text-emerald-700">Panel Members</span>
+                </div>
+                <div class="grid grid-cols-12 gap-4">
+                    <div class="col-span-4">
+                        <label class="block font-medium mb-2">Chairman <span class="text-red-500">*</span></label>
+                        <Select v-model="summonsDetails.judge" :options="judges" optionValue="id" optionLabel="name" placeholder="Select Chairman" fluid :invalid="submitted && !summonsDetails.judge" />
+                        <small v-if="submitted && !summonsDetails.judge" class="text-red-500">Chairman is required.</small>
+                    </div>
+                    <div class="col-span-4">
+                        <label class="block font-medium mb-2">Member 1</label>
+                        <Select v-model="summonsDetails.member1" :options="judges" optionValue="id" optionLabel="name" placeholder="Select Member 1" fluid />
+                    </div>
+                    <div class="col-span-4">
+                        <label class="block font-medium mb-2">Member 2</label>
+                        <Select v-model="summonsDetails.member2" :options="judges" optionValue="id" optionLabel="name" placeholder="Select Member 2" fluid />
+                    </div>
+                </div>
             </div>
         </div>
 
         <template #footer>
-            <Button label="Cancel" icon="pi pi-times" text @click="summonsDialog.value = false" />
-            <Button label="Save" icon="pi pi-check" @click="saveSummons" />
+            <Button label="Cancel" icon="pi pi-times" text @click="summonsDialog = false" />
+            <Button label="Save Summons" icon="pi pi-check" class="p-button-success" @click="saveSummons" />
         </template>
     </Dialog>
 
-    <Dialog v-model:visible="concludeDialog" :style="{ width: '500px' }" header="Conclude Details" :modal="true">
-        <div>
-            <label for="appealNo" class="block font-bold mb-3">
-                {{ summonsDetails.appealList.map((appeal) => appeal.appealNo).join(', ') }}
-            </label>
+    <!-- Conclude Dialog -->
+    <Dialog v-model:visible="concludeDialog" :style="{ width: '500px' }" header="Conclude Summons" :modal="true">
+        <div class="flex flex-col gap-5">
+            <!-- Sub-header -->
+            <div class="flex items-center gap-3 pb-3" style="border-left: 4px solid #3b82f6; padding-left: 12px">
+                <div>
+                    <div class="font-semibold text-surface-900 dark:text-surface-0">Conclude Hearing</div>
+                    <div class="text-muted-color text-sm">
+                        <span v-if="summonsDetails.appealList?.length">{{ summonsDetails.appealList.map((a) => a.appealNo).join(', ') }}</span>
+                        <span v-else-if="summonsDetails.applicationList?.length">{{ summonsDetails.applicationList.map((a) => a.applicationNo).join(', ') }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <label class="block font-medium mb-2"><i class="pi pi-calendar mr-2 text-muted-color"></i>Concluding Date</label>
+                <DatePicker v-model="conclude.concludeDate" placeholder="Select date" dateFormat="yy-mm-dd" showIcon :showOnFocus="false" fluid />
+            </div>
+
+            <div>
+                <label class="block font-medium mb-2"><i class="pi pi-align-left mr-2 text-muted-color"></i>Description</label>
+                <Textarea v-model="conclude.description" rows="4" placeholder="Enter concluding remarks" fluid />
+            </div>
         </div>
-        <div>
-            <label for="startDate" class="block font-bold mb-3">Concluding Date</label>
-            <DatePicker id="startDate" v-model.trim="conclude.concludeDate" required="true" fluid />
+
+        <template #footer>
+            <Button label="Cancel" icon="pi pi-times" text @click="concludeDialog = false" />
+            <Button label="Submit" icon="pi pi-check" severity="info" @click="submitConcludeDetails" />
+        </template>
+    </Dialog>
+
+    <!-- Delete Confirmation Dialog -->
+    <Dialog v-model:visible="deleteDialog" :style="{ width: '420px' }" header="Confirm Deletion" :modal="true">
+        <div class="flex flex-col items-center gap-4 py-4">
+            <div class="flex items-center justify-center rounded-full" style="width: 4rem; height: 4rem; background: linear-gradient(135deg, #fef2f2, #fecaca)">
+                <i class="pi pi-exclamation-triangle text-red-500 text-2xl"></i>
+            </div>
+            <div class="text-center">
+                <div class="font-semibold text-lg text-surface-900 dark:text-surface-0 mb-1">Delete this summons?</div>
+                <div class="text-muted-color text-sm">This action cannot be undone.</div>
+            </div>
         </div>
-        <div class="mt-4">
-            <label for="description" class="block font-bold mb-3">Description</label>
-            <textarea id="description" v-model="conclude.description" rows="4" placeholder="Enter description" class="w-full border p-2"></textarea>
-        </div>
-        <div class="flex justify-end mt-4">
-            <Button label="Submit" @click="submitConcludeDetails" />
-        </div>
+        <template #footer>
+            <Button label="Cancel" icon="pi pi-times" text @click="deleteDialog = false" />
+            <Button label="Delete" icon="pi pi-trash" severity="danger" @click="deleteSummons" />
+        </template>
     </Dialog>
 </template>

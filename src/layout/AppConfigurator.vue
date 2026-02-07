@@ -133,10 +133,10 @@ function getPresetExt() {
                 colorScheme: {
                     light: {
                         primary: {
-                            color: '{primary.500}',
+                            color: '{primary.700}',
                             contrastColor: '#ffffff',
-                            hoverColor: '{primary.600}',
-                            activeColor: '{primary.700}'
+                            hoverColor: '{primary.800}',
+                            activeColor: '{primary.900}'
                         },
                         highlight: {
                             background: '{primary.50}',

@@ -10,7 +10,7 @@ const permissionMapping = {
     'Manage Notice': ['Notices'],
     'Manage Statement': ['Statements'],
     'Manage Application': ['Applications'],
-    'Report Manager': ['Appeal Reports', 'Payment Reports']
+    'Report Manager': ['Reports']
 };
 
 const model = ref([
@@ -118,23 +118,7 @@ const model = ref([
             {
                 label: 'Reports',
                 icon: 'pi pi-fw pi-chart-bar',
-                items: [
-                    {
-                        label: 'Appeal Reports',
-                        icon: 'pi pi-fw pi-chart-bar',
-                        to: '/reports/appeal-reports'
-                    },
-                    {
-                        label: 'Payment Reports',
-                        icon: 'pi pi-fw pi-dollar',
-                        to: '/reports/payment-reports'
-                    },
-                    {
-                        label: 'Cause List Reports',
-                        icon: 'pi pi-fw pi-dollar',
-                        to: '/reports/summons-reports'
-                    }
-                ]
+                to: '/reports'
             }
         ]
     }

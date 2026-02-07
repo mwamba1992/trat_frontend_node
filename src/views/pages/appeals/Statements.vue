@@ -1,20 +1,18 @@
 <script setup>
-import { ApplicationService } from '@/service/ApplicationService'; // Ensure a service exists to handle API requests
 import { useToast } from 'primevue/usetoast';
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, computed } from 'vue';
 import { FilterMatchMode } from '@primevue/core/api';
 import { SetupService } from '@/service/SetupService';
 import { PartyService } from '@/service/PartyService';
 import { AppealService } from '@/service/AppealService';
 import { NoticeService } from '@/service/NoticeService';
+import { JudgeService } from '@/service/JudgeService';
 
 // References for data and state
 const appeals = ref([]);
 const appealDialog = ref(false);
 const appealDecisionDialog = ref(false);
 const appealViewDialog = ref(false);
-const isAppealsDiv = ref(false);
-const isApplicationDiv = ref(false);
 const deleteApplicationDialog = ref(false);
 const appeal = ref({});
 const appealAmount = ref({});
@@ -35,20 +33,47 @@ const searchCriteria = ref({
     region: ''
 });
 
+// Stat cards
+const totalAppeals = ref(0);
+const pendingCount = ref(0);
+const decidedCount = ref(0);
+
+// Filter refs
+const filterTaxType = ref(null);
+const filterStatusTrend = ref(null);
+const filterDateFrom = ref(null);
+const filterDateTo = ref(null);
+const statusTrends = ref([]);
+
+const judges = ref([]);
+const decisionStatuses = ref([]);
+
 const choices = ref([
     { name: 'Appeals', id: '2' },
     { name: 'Application', id: '1' }
-]);
-const appealFor = ref([
-    { label: 'Applications', value: '1' },
-    { label: 'Appeals', value: '2' }
 ]);
 
 const filters = ref({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS }
 });
 
-// Fetch applications on component mount
+// Computed: filtered appeals based on filter dropdowns
+const filteredAppeals = computed(() => {
+    let result = appeals.value || [];
+    if (filterTaxType.value) {
+        result = result.filter((a) => a.taxes && a.taxes.name === filterTaxType.value);
+    }
+    if (filterStatusTrend.value) {
+        result = result.filter((a) => a.statusTrend && a.statusTrend.name === filterStatusTrend.value);
+    }
+    if (filterDateFrom.value) {
+        result = result.filter((a) => a.dateOfFilling && new Date(a.dateOfFilling) >= new Date(filterDateFrom.value));
+    }
+    if (filterDateTo.value) {
+        result = result.filter((a) => a.dateOfFilling && new Date(a.dateOfFilling) <= new Date(filterDateTo.value));
+    }
+    return result;
+});
 
 onMounted(async () => {
     await fetchAppeals();
@@ -57,19 +82,19 @@ onMounted(async () => {
         const setups = await SetupService.getSetups('region');
         regions.value = setups.map((setup) => ({
             id: setup.id,
-            name: setup.description // Assuming each `CommonSetup` has `id` and `name`
+            name: setup.description
         }));
 
         const taxTypes = await SetupService.getSetups('taxType');
         taxes.value = taxTypes.map((setup) => ({
             id: setup.id,
-            name: setup.name // Assuming each `CommonSetup` has `id` and `name`
+            name: setup.name
         }));
 
         const currencyTypes = await SetupService.getSetups('currency');
         currencies.value = currencyTypes.map((setup) => ({
             id: setup.id,
-            name: setup.name // Assuming each `CommonSetup` has `id` and `name`
+            name: setup.name
         }));
 
         const appellants = await PartyService.getApplicants();
@@ -84,16 +109,16 @@ onMounted(async () => {
             name: respondent.name
         }));
 
-        // const applications = await ApplicationService.getAppealsFromTrab();
-        // availableApplications.value = applications._embedded.appeals.map((application) => ({
-        //     id: application.id,
-        //     name: application.appealNo + ' - ' + application._embedded.tax.taxName
-        // }));
-
         const notice = await NoticeService.getNotices();
         notices.value = notice.map((not) => ({
             id: not.id,
             name: not.noticeNo + ' - ' + not.appellantFullName
+        }));
+
+        const judgeList = await JudgeService.getJudges();
+        judges.value = judgeList.map((j) => ({
+            id: j.id,
+            name: j.name
         }));
     } catch (error) {
         console.error(error);
@@ -103,7 +128,29 @@ onMounted(async () => {
 
 async function fetchAppeals() {
     loading.value = true;
-    appeals.value = await AppealService.getAppeals();
+    const data = await AppealService.getAppeals();
+    appeals.value = data;
+
+    // Populate stat cards from API (same as dashboard)
+    try {
+        const cards = await AppealService.getCardStatistics();
+        totalAppeals.value = cards[0] || 0;
+        pendingCount.value = cards[1] || 0;
+        decidedCount.value = cards[2] || 0;
+    } catch (e) {
+        totalAppeals.value = data.length;
+    }
+
+    // Populate status trends for filter dropdown
+    const trendSet = new Set();
+    data.forEach((a) => {
+        if (a.statusTrend && a.statusTrend.name) {
+            trendSet.add(a.statusTrend.name);
+        }
+    });
+    statusTrends.value = Array.from(trendSet).map((name) => ({ label: name, value: name }));
+    decisionStatuses.value = Array.from(trendSet).map((name) => ({ label: name, value: name }));
+
     loading.value = false;
 }
 
@@ -139,7 +186,13 @@ function openNew() {
 }
 
 function editApplication(app) {
-    appeal.value = { ...app };
+    appeal.value = {
+        ...app,
+        notice: app.notice?.id || app.notice,
+        taxes: app.taxes?.id || app.taxes,
+        region: app.region?.id || app.region
+    };
+    submitted.value = false;
     appealDialog.value = true;
 }
 
@@ -222,9 +275,9 @@ function deleteApplication() {
 }
 
 // Temporary selected items
-const selectedAppellants = ref([]);
-const selectedRespondents = ref([]);
-const selectedApplication = ref([]);
+const selectedAppellants = ref(null);
+const selectedRespondents = ref(null);
+const selectedApplication = ref(null);
 
 function addAppellant() {
     if (selectedAppellants.value) {
@@ -354,8 +407,25 @@ function searchApplications() {
 }
 
 function updateDecision(app) {
-    appeal.value = { ...app };
+    appeal.value = {
+        ...app,
+        decisionStatus: app.statusTrend?.name || null,
+        assignedJudge: app.assignedJudge?.id || app.assignedJudge || null
+    };
     appealDecisionDialog.value = true;
+}
+
+function saveDecision() {
+    AppealService.updateAppeal(appeal.value.id, appeal.value)
+        .then(() => {
+            toast.add({ severity: 'success', summary: 'Success', detail: 'Decision updated successfully', life: 3000 });
+            fetchAppeals();
+            appealDecisionDialog.value = false;
+        })
+        .catch((error) => {
+            console.error(error);
+            toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to update decision', life: 3000 });
+        });
 }
 
 function viewAppeal(app) {
@@ -367,337 +437,618 @@ function viewAppeal(app) {
 function formatAmount(value) {
     return new Intl.NumberFormat().format(value);
 }
+
+function getInitial(name) {
+    return name ? name.charAt(0).toUpperCase() : '?';
+}
+
+function getTaxSeverity(taxName) {
+    const map = {
+        VAT: 'info',
+        'INCOME TAX': 'success',
+        PAYE: 'warn',
+        'CUSTOM AND EXERCISE': 'danger',
+        'IMPORT DUTY': 'secondary',
+        'WITHHOLDING TAX': 'info',
+        'VAT AND INCOME': 'success',
+        'STAMP DUTY': 'warn',
+        WAIVER: 'contrast',
+        OTHERS: 'secondary'
+    };
+    return map[taxName] || 'info';
+}
+
+function getStatusSeverity(statusName) {
+    const map = {
+        PENDING: 'warn',
+        DECIDED: 'success',
+        NEW: 'info',
+        DISMISSED: 'danger',
+        WITHDRAWN: 'secondary'
+    };
+    return map[statusName] || 'info';
+}
+
+function clearFilters() {
+    filterTaxType.value = null;
+    filterStatusTrend.value = null;
+    filterDateFrom.value = null;
+    filterDateTo.value = null;
+    filters.value.global.value = null;
+}
+
+function exportCSV() {
+    dt.value.exportCSV();
+}
 </script>
 
 <template>
-    <Toolbar class="mb-6">
-        <template #start>
-            <Button label="New" icon="pi pi-plus" class="mr-2" @click="openNew" />
-        </template>
-        <template #end>
-            <Button label="Export" icon="pi pi-upload" @click="dt.value.exportCSV()" />
-        </template>
-    </Toolbar>
+    <!-- Page Header -->
+    <div class="flex justify-between items-start mb-6">
+        <div>
+            <h1 class="text-3xl font-bold text-surface-900 dark:text-surface-0 m-0">Appeals Management</h1>
+            <p class="text-muted-color mt-1">Manage legal appeals and statements efficiently</p>
+        </div>
+        <span class="text-sm text-muted-color">{{ filteredAppeals?.length || 0 }} appeals</span>
+    </div>
 
-    <DataTable
-        ref="dt"
-        :value="appeals"
-        v-model:selection="selectedApplication"
-        dataKey="id"
-        :paginator="true"
-        :rows="10"
-        :filters="filters"
-        paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
-        :rowsPerPageOptions="[5, 10, 25]"
-        currentPageReportTemplate="Showing {first} to {last} of {totalRecords} applications"
-        :loading="loading"
-    >
-        <template #header>
-            <div class="flex flex-wrap gap-2 items-center justify-between">
-                <h4 class="m-0">Manage Statements</h4>
-                <InputText v-model="filters['global'].value" placeholder="Search..." />
+    <!-- Stat Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div>
+            <div class="card mb-0 h-full">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="text-muted-color font-medium text-sm">Total Appeals</span>
+                    <div class="flex items-center justify-center rounded-border" style="width: 2.5rem; height: 2.5rem; background: linear-gradient(135deg, #eef2ff, #e0e7ff)">
+                        <i class="pi pi-folder text-indigo-500"></i>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3 mb-3">
+                    <span class="text-surface-900 dark:text-surface-0 font-bold text-2xl">{{ totalAppeals }}</span>
+                </div>
+                <div class="w-full bg-surface-200 dark:bg-surface-600 rounded-full" style="height: 4px">
+                    <div class="bg-indigo-500 rounded-full" style="width: 100%; height: 4px"></div>
+                </div>
+                <span class="block text-muted-color text-xs mt-2">All registered appeals</span>
             </div>
-        </template>
+        </div>
+        <div>
+            <div class="card mb-0 h-full">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="text-muted-color font-medium text-sm">Pending</span>
+                    <div class="flex items-center justify-center rounded-border" style="width: 2.5rem; height: 2.5rem; background: linear-gradient(135deg, #fff7ed, #ffedd5)">
+                        <i class="pi pi-clock text-orange-500"></i>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3 mb-3">
+                    <span class="text-surface-900 dark:text-surface-0 font-bold text-2xl">{{ pendingCount }}</span>
+                    <Tag v-if="totalAppeals > 0" :value="Math.round((pendingCount / totalAppeals) * 100) + '%'" severity="warn" rounded />
+                </div>
+                <div class="w-full bg-surface-200 dark:bg-surface-600 rounded-full" style="height: 4px">
+                    <div class="bg-orange-500 rounded-full" :style="{ width: totalAppeals > 0 ? Math.round((pendingCount / totalAppeals) * 100) + '%' : '0%', height: '4px' }"></div>
+                </div>
+                <span class="block text-muted-color text-xs mt-2">Awaiting decision</span>
+            </div>
+        </div>
+        <div>
+            <div class="card mb-0 h-full">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="text-muted-color font-medium text-sm">Decided</span>
+                    <div class="flex items-center justify-center rounded-border" style="width: 2.5rem; height: 2.5rem; background: linear-gradient(135deg, #ecfdf5, #d1fae5)">
+                        <i class="pi pi-check-circle text-emerald-500"></i>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3 mb-3">
+                    <span class="text-surface-900 dark:text-surface-0 font-bold text-2xl">{{ decidedCount }}</span>
+                    <Tag v-if="totalAppeals > 0" :value="Math.round((decidedCount / totalAppeals) * 100) + '%'" severity="success" rounded />
+                </div>
+                <div class="w-full bg-surface-200 dark:bg-surface-600 rounded-full" style="height: 4px">
+                    <div class="bg-emerald-500 rounded-full" :style="{ width: totalAppeals > 0 ? Math.round((decidedCount / totalAppeals) * 100) + '%' : '0%', height: '4px' }"></div>
+                </div>
+                <span class="block text-muted-color text-xs mt-2">Completed decisions</span>
+            </div>
+        </div>
+    </div>
 
-        <Column selectionMode="multiple" style="width: 3rem"></Column>
-        <Column field="appealNo" header="Appeal No" sortable></Column>
-        <Column field="dateOfFilling" header="Date of Filing" sortable></Column>
-        <Column header="Applicants" sortable>
-            <template #body="slotProps">
-                <span v-if="slotProps.data.appellantList && slotProps.data.appellantList.length">
-                    {{ slotProps.data.appellantList.map((appellant) => appellant.name).join(', ') }}
-                </span>
-                <span v-else>No Applicants</span>
-            </template>
-        </Column>
+    <div class="card">
+        <!-- Action Bar -->
+        <div class="flex items-center justify-between mb-4">
+            <Button label="New Appeal" icon="pi pi-plus" severity="success" class="mr-2" @click="openNew" />
+            <div class="flex items-center gap-3">
+                <IconField>
+                    <InputIcon>
+                        <i class="pi pi-search" />
+                    </InputIcon>
+                    <InputText v-model="filters['global'].value" placeholder="Search appeals..." />
+                </IconField>
+                <Button label="Clear Filters" icon="pi pi-filter-slash" severity="secondary" text @click="clearFilters" />
+                <Button label="Export" icon="pi pi-download" severity="secondary" outlined @click="exportCSV($event)" />
+            </div>
+        </div>
 
-        <Column header="Respondents" sortable>
-            <template #body="slotProps">
-                <span v-if="slotProps.data.respondentList && slotProps.data.respondentList.length">
-                    {{ slotProps.data.respondentList.map((appellant) => appellant.name).join(', ') }}
-                </span>
-                <span v-else>No Applicants</span>
-            </template>
-        </Column>
+        <!-- Filter Row -->
+        <div class="grid grid-cols-12 gap-4 mb-4">
+            <div class="col-span-3">
+                <Select v-model="filterTaxType" :options="taxes" optionLabel="name" optionValue="name" placeholder="Tax Type" fluid showClear />
+            </div>
+            <div class="col-span-3">
+                <Select v-model="filterStatusTrend" :options="statusTrends" optionLabel="label" optionValue="value" placeholder="Status Trend" fluid showClear />
+            </div>
+            <div class="col-span-3">
+                <DatePicker v-model="filterDateFrom" placeholder="Filing Date From" fluid showIcon dateFormat="yy-mm-dd" />
+            </div>
+            <div class="col-span-3">
+                <DatePicker v-model="filterDateTo" placeholder="Filing Date To" fluid showIcon dateFormat="yy-mm-dd" />
+            </div>
+        </div>
 
-        <Column field="natureOfRequest" header="Nature of Request" sortable></Column>
-        <Column field="taxes.name" header="Tax" sortable></Column>
-        <Column style="min-width: 12rem">
-            <template #body="slotProps">
-                <Button icon="pi pi-pencil" outlined rounded class="mr-2" @click="editApplication(slotProps.data)" />
-                <Button icon="pi pi-undo" outlined rounded class="mr-2" @click="updateDecision(slotProps.data)" />
-                <Button icon="pi pi-eye" outlined rounded class="mr-2" @click="viewAppeal(slotProps.data)" />
-            </template>
-        </Column>
-    </DataTable>
+        <DataTable
+            ref="dt"
+            :value="filteredAppeals"
+            dataKey="id"
+            :paginator="true"
+            :rows="10"
+            :filters="filters"
+            paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
+            :rowsPerPageOptions="[5, 10, 25]"
+            currentPageReportTemplate="Showing {first} to {last} of {totalRecords} appeals"
+            :loading="loading"
+            stripedRows
+        >
+            <Column header="No" style="width: 4rem">
+                <template #body="slotProps">
+                    {{ slotProps.index + 1 }}
+                </template>
+            </Column>
+            <Column field="appealNo" header="Appeal No" sortable style="min-width: 10rem">
+                <template #body="slotProps">
+                    <div class="flex items-center gap-2">
+                        <span class="inline-block w-2 h-2 rounded-full bg-blue-500"></span>
+                        <span class="font-medium">{{ slotProps.data.appealNo }}</span>
+                    </div>
+                </template>
+            </Column>
+            <Column field="dateOfFilling" header="Filing Date" sortable style="min-width: 10rem">
+                <template #body="slotProps">
+                    <div class="flex items-center gap-2">
+                        <i class="pi pi-calendar text-muted-color"></i>
+                        <span>{{ slotProps.data.dateOfFilling }}</span>
+                    </div>
+                </template>
+            </Column>
+            <Column header="Appellants" sortable style="min-width: 14rem">
+                <template #body="slotProps">
+                    <div v-if="slotProps.data.appellantList && slotProps.data.appellantList.length" class="flex items-center gap-2">
+                        <div class="flex items-center justify-center rounded-full text-white font-bold text-sm" style="width: 2rem; height: 2rem; background: linear-gradient(135deg, #818cf8, #6366f1)">
+                            {{ getInitial(slotProps.data.appellantList[0].name) }}
+                        </div>
+                        <div>
+                            <div class="font-medium text-surface-900 dark:text-surface-0">{{ slotProps.data.appellantList[0].name }}</div>
+                            <div class="text-muted-color text-xs">{{ slotProps.data.appellantList.length }} appellant(s)</div>
+                        </div>
+                    </div>
+                    <span v-else class="text-muted-color text-sm">No Appellants</span>
+                </template>
+            </Column>
+            <Column header="Respondents" sortable style="min-width: 14rem">
+                <template #body="slotProps">
+                    <div v-if="slotProps.data.respondentList && slotProps.data.respondentList.length" class="flex items-center gap-2">
+                        <div class="flex items-center justify-center rounded-full text-white font-bold text-sm" style="width: 2rem; height: 2rem; background: linear-gradient(135deg, #34d399, #10b981)">
+                            {{ getInitial(slotProps.data.respondentList[0].name) }}
+                        </div>
+                        <div>
+                            <div class="font-medium text-surface-900 dark:text-surface-0">{{ slotProps.data.respondentList[0].name }}</div>
+                            <div class="text-muted-color text-xs">{{ slotProps.data.respondentList.length }} respondent(s)</div>
+                        </div>
+                    </div>
+                    <span v-else class="text-muted-color text-sm">No Respondents</span>
+                </template>
+            </Column>
+            <Column field="taxes.name" header="Tax Type" sortable style="min-width: 10rem">
+                <template #body="slotProps">
+                    <Tag v-if="slotProps.data.taxes" :value="slotProps.data.taxes.name" :severity="getTaxSeverity(slotProps.data.taxes.name)" rounded />
+                    <span v-else class="text-muted-color text-sm">N/A</span>
+                </template>
+            </Column>
+            <Column header="Status Trend" sortable style="min-width: 10rem">
+                <template #body="slotProps">
+                    <Tag v-if="slotProps.data.statusTrend" :value="slotProps.data.statusTrend.name" :severity="getStatusSeverity(slotProps.data.statusTrend.name)" rounded />
+                    <span v-else class="text-muted-color text-sm">N/A</span>
+                </template>
+            </Column>
+            <Column :exportable="false" style="min-width: 10rem">
+                <template #body="slotProps">
+                    <div class="flex items-center gap-1">
+                        <Button icon="pi pi-pencil" text rounded @click="editApplication(slotProps.data)" />
+                        <Button icon="pi pi-check" text rounded severity="success" @click="updateDecision(slotProps.data)" />
+                        <Button icon="pi pi-eye" text rounded severity="info" @click="viewAppeal(slotProps.data)" />
+                        <Button icon="pi pi-trash" text rounded severity="danger" @click="appeal = { ...slotProps.data }; deleteApplicationDialog = true" />
+                    </div>
+                </template>
+            </Column>
+        </DataTable>
+    </div>
 
-    <Dialog v-model:visible="appealDialog" header="Appeals Details" :modal="true" :style="{ width: '800px' }">
-        <div class="grid">
-            <!-- Taxes -->
-
-            <!-- Taxes -->
-            <div class="col-12">
-                <label for="taxes" class="block font-bold mb-2">Notice</label>
-                <Select id="type" v-model="appeal.notice" :options="notices" optionValue="id" optionLabel="name" placeholder="Select Notice" required filter filterBy="name" class="w-full" />
+    <Dialog v-model:visible="appealDialog" header="Appeal Registration" :modal="true" :style="{ width: '900px' }">
+        <div class="flex flex-col gap-5">
+            <!-- Sub-header with left accent -->
+            <div class="bg-surface-100 dark:bg-surface-700 rounded-border p-4" style="border-left: 4px solid var(--primary-color)">
+                <div class="font-semibold text-lg text-surface-900 dark:text-surface-0">{{ appeal.id ? 'Edit Appeal' : 'Create New Appeal' }}</div>
+                <span class="text-muted-color text-sm">Fill in the details for the legal appeal</span>
             </div>
 
-            <div class="col-12">
-                <label for="dateOfFilling" class="block font-bold mb-2">Date of Filing</label>
-                <DatePicker id="dateOfFilling" v-model="appeal.dateOfFilling" dateFormat="yy-mm-dd" class="w-full" />
+            <div class="grid grid-cols-12 gap-4">
+                <div class="col-span-6">
+                    <label for="notice" class="flex items-center gap-2 font-medium mb-2"><i class="pi pi-bell text-muted-color"></i> Notice <span class="text-red-500">*</span></label>
+                    <Select id="notice" v-model="appeal.notice" :options="notices" optionValue="id" optionLabel="name" placeholder="Select Notice" required filter filterBy="name" fluid />
+                </div>
+                <div class="col-span-6">
+                    <label for="dateOfFilling" class="flex items-center gap-2 font-medium mb-2"><i class="pi pi-calendar text-muted-color"></i> Date of Filing <span class="text-red-500">*</span></label>
+                    <DatePicker id="dateOfFilling" v-model="appeal.dateOfFilling" dateFormat="yy-mm-dd" fluid showIcon />
+                </div>
             </div>
 
-            <div class="col-12">
-                <label for="notice" class="block font-bold mb-2">Region</label>
-                <Select id="type" v-model="appeal.region" :options="regions" optionValue="id" optionLabel="name" placeholder="Select Region" required class="w-full" />
+            <div class="grid grid-cols-12 gap-4">
+                <div class="col-span-6">
+                    <label for="region" class="flex items-center gap-2 font-medium mb-2"><i class="pi pi-map-marker text-muted-color"></i> Region <span class="text-red-500">*</span></label>
+                    <Select id="region" v-model="appeal.region" :options="regions" optionValue="id" optionLabel="name" placeholder="Select Region" required fluid />
+                </div>
+                <div class="col-span-6">
+                    <label for="taxes" class="flex items-center gap-2 font-medium mb-2">Tax Type <span class="text-red-500">*</span></label>
+                    <Select id="taxes" v-model="appeal.taxes" :options="taxes" optionValue="id" optionLabel="name" placeholder="Select Tax Type" required fluid />
+                </div>
             </div>
 
-            <!-- Taxes -->
-            <div class="col-12">
-                <label for="taxes" class="block font-bold mb-2">Taxes</label>
-                <Select id="type" v-model="appeal.taxes" :options="taxes" optionValue="id" optionLabel="name" placeholder="Select Tax  Type" required class="w-full" />
-            </div>
-
-            <!-- Nature of Request -->
-            <div class="col-12">
-                <label for="natureOfRequest" class="block font-bold mb-2">Nature of Request</label>
-                <Textarea id="natureOfRequest" v-model="appeal.natureOfRequest" required class="w-full" rows="4" />
+            <div>
+                <label for="natureOfRequest" class="flex items-center gap-2 font-medium mb-2"><i class="pi pi-file-edit text-muted-color"></i> Nature of Request <span class="text-red-500">*</span></label>
+                <Textarea id="natureOfRequest" v-model="appeal.natureOfRequest" required rows="4" fluid placeholder="Describe the nature of your request..." :maxlength="2000" style="resize: none; width: 100%" />
+                <div class="text-right text-muted-color text-xs mt-1">{{ (appeal.natureOfRequest || '').length }}/2000 characters</div>
             </div>
 
             <!-- Appellant List -->
-            <div class="col-12">
-                <label for="appellantList" class="block font-bold mb-2">Appellant List</label>
-                <Dropdown v-model="selectedAppellants" :options="availableAppellants" optionLabel="name" multiple placeholder="Select Appellants" class="w-full" filter filterBy="name" />
-                <Button label="Add Appellant" icon="pi pi-plus" @click="addAppellant" class="mt-2" />
-                <div class="mt-2">
-                    <ul>
-                        <li v-for="(appellant, index) in appeal.appellantList" :key="index">
+            <div>
+                <label class="flex items-center gap-2 font-medium mb-2"><i class="pi pi-users text-muted-color"></i> Appellant List</label>
+                <div class="grid grid-cols-12 gap-3 mb-2">
+                    <div class="col-span-10">
+                        <Select v-model="selectedAppellants" :options="availableAppellants" optionLabel="name" placeholder="Select Appellants" filter filterBy="name" fluid />
+                    </div>
+                    <div class="col-span-2">
+                        <Button label="Add" icon="pi pi-plus" class="w-full" @click="addAppellant" />
+                    </div>
+                </div>
+                <div v-if="appeal.appellantList && appeal.appellantList.length" class="flex flex-wrap gap-2">
+                    <Tag v-for="(appellant, index) in appeal.appellantList" :key="index" severity="info" rounded>
+                        <span class="flex items-center gap-1">
                             {{ appellant.name }}
-                            <Button icon="pi pi-times" class="p-button-rounded p-button-danger ml-2" @click="removeAppellant(index)" />
-                        </li>
-                    </ul>
+                            <i class="pi pi-times text-xs cursor-pointer" @click="removeAppellant(index)"></i>
+                        </span>
+                    </Tag>
                 </div>
             </div>
 
             <!-- Respondent List -->
-            <div class="col-12">
-                <label for="respondentList" class="block font-bold mb-2">Respondent List</label>
-                <Dropdown v-model="selectedRespondents" :options="availableRespondents" optionLabel="name" multiple placeholder="Select Respondents" filter filterBy="name" class="w-full" />
-                <Button label="Add Respondent" icon="pi pi-plus" @click="addRespondent" class="mt-2" />
-                <div class="mt-2">
-                    <ul>
-                        <li v-for="(respondent, index) in appeal.respondentList" :key="index">
+            <div>
+                <label class="flex items-center gap-2 font-medium mb-2"><i class="pi pi-id-card text-muted-color"></i> Respondent List</label>
+                <div class="grid grid-cols-12 gap-3 mb-2">
+                    <div class="col-span-10">
+                        <Select v-model="selectedRespondents" :options="availableRespondents" optionLabel="name" placeholder="Select Respondents" filter filterBy="name" fluid />
+                    </div>
+                    <div class="col-span-2">
+                        <Button label="Add" icon="pi pi-plus" class="w-full" @click="addRespondent" />
+                    </div>
+                </div>
+                <div v-if="appeal.respondentList && appeal.respondentList.length" class="flex flex-wrap gap-2">
+                    <Tag v-for="(respondent, index) in appeal.respondentList" :key="index" severity="success" rounded>
+                        <span class="flex items-center gap-1">
                             {{ respondent.name }}
-                            <Button icon="pi pi-times" class="p-button-rounded p-button-danger ml-2" @click="removeRespondent(index)" />
-                        </li>
-                    </ul>
+                            <i class="pi pi-times text-xs cursor-pointer" @click="removeRespondent(index)"></i>
+                        </span>
+                    </Tag>
                 </div>
             </div>
 
-            <!-- Amount and Currency Selection -->
-            <div class="col-12">
-                <label for="amountCurrency" class="block font-bold mb-2">Amount and Currency</label>
-
-                <!-- Input Row -->
-                <div class="flex align-items-center gap-3 mb-3">
-                    <!-- Amount Input -->
-                    <InputNumber v-model="appealAmount.amount" ref="amountInput" placeholder="Enter Amount" class="flex-grow-1" mode="decimal" min="0" step="0.01" :minFractionDigits="2" :maxFractionDigits="5" />
-
-                    <!-- Currency Dropdown -->
-                    <Dropdown v-model="appealAmount.currency" ref="currencyInput" :options="currencies" optionLabel="name" optionValue="name" placeholder="Select Currency" class="flex-grow-1" />
-
-                    <!-- Add Button -->
-                    <Button label="Add" icon="pi pi-plus" @click="addAmountCurrency" class="p-button-primary" />
+            <!-- Amount and Currency -->
+            <div>
+                <label class="flex items-center gap-2 font-medium mb-2"><i class="pi pi-wallet text-muted-color"></i> Amount and Currency</label>
+                <div class="grid grid-cols-12 gap-3 mb-2">
+                    <div class="col-span-5">
+                        <InputNumber v-model="appealAmount.amount" placeholder="Enter Amount" mode="decimal" min="0" :minFractionDigits="2" :maxFractionDigits="5" fluid />
+                    </div>
+                    <div class="col-span-5">
+                        <Select v-model="appealAmount.currency" :options="currencies" optionLabel="name" optionValue="name" placeholder="Currency" fluid />
+                    </div>
+                    <div class="col-span-2">
+                        <Button label="Add" icon="pi pi-plus" class="w-full p-button-success" @click="addAmountCurrency" />
+                    </div>
                 </div>
-
-                <!-- Display Added Amounts and Currencies -->
-                <div class="mt-2">
-                    <ul>
-                        <li v-for="(entry, index) in appeal.amountCurrencyList" :key="index">
-                            {{ entry.amount }} {{ entry.currency }}
-                            <Button icon="pi pi-times" class="p-button-rounded p-button-danger ml-2" @click="removeAmountCurrency(index)" />
-                        </li>
-                    </ul>
+                <div v-if="appeal.amountCurrencyList && appeal.amountCurrencyList.length" class="flex flex-wrap gap-2">
+                    <Tag v-for="(entry, index) in appeal.amountCurrencyList" :key="index" severity="warn" rounded>
+                        <span class="flex items-center gap-1">
+                            {{ formatAmount(entry.amount) }} {{ entry.currency }}
+                            <i class="pi pi-times text-xs cursor-pointer" @click="removeAmountCurrency(index)"></i>
+                        </span>
+                    </Tag>
                 </div>
             </div>
 
-            <!--            <div class="col-12">-->
-            <!--                <label for="taxes" class="block font-bold mb-2">Application Types</label>-->
-            <!--                <Select id="type" v-model="appeal.selectedType" @change="onSelectChange(appeal.selectedType)" :options="appealFor" optionValue="value" optionLabel="label" placeholder="Select Type To Link" required class="w-full" />-->
-            <!--            </div>-->
+            <!-- Separator -->
+            <div class="border-t border-surface-200 dark:border-surface-600"></div>
 
-            <!-- Appellant List -->
-            <div class="col-12">
-                <label for="appellantList" class="block font-bold mb-2">Search Appeals/Applications From Trab</label>
-                <div class="flex align-items-center gap-3 mb-3">
-                    <Select id="type" v-model="searchCriteria.type" :options="choices" optionValue="id" optionLabel="name" placeholder="Select Type " required filter filterBy="name" class="flex-grow-1" />
-                    <InputText v-model="searchCriteria.year" type="number" placeholder="Year" class="flex-grow-1" />
-                    <InputText v-model="searchCriteria.region" type="text" placeholder="Region" class="flex-grow-1" />
-                    <Button label="Search" icon="pi pi-search" @click="searchApplications" class="mt-2" />
+            <!-- Search Appeals/Applications from TRAB -->
+            <div>
+                <label class="flex items-center gap-2 font-semibold mb-3 text-lg"><i class="pi pi-search text-muted-color"></i> Search Appeals/Applications From TRAB</label>
+                <div class="grid grid-cols-12 gap-4 mb-3">
+                    <div class="col-span-3">
+                        <label class="block text-muted-color text-sm mb-1">Type</label>
+                        <Select v-model="searchCriteria.type" :options="choices" optionValue="id" optionLabel="name" placeholder="Select Type" required filter filterBy="name" fluid />
+                    </div>
+                    <div class="col-span-3">
+                        <label class="block text-muted-color text-sm mb-1">Year</label>
+                        <InputText v-model="searchCriteria.year" type="number" placeholder="Enter Year" fluid />
+                    </div>
+                    <div class="col-span-3">
+                        <label class="block text-muted-color text-sm mb-1">Region</label>
+                        <InputText v-model="searchCriteria.region" type="text" placeholder="Enter Region" fluid />
+                    </div>
+                    <div class="col-span-3 flex items-end">
+                        <Button label="Search TRAB" icon="pi pi-search" class="w-full" @click="searchApplications" style="background: linear-gradient(135deg, #34d399, #10b981); border: none" />
+                    </div>
                 </div>
 
-                <div v-if="isLoading" class="loader-container">
-                    <i class="pi pi-spin pi-spinner" style="font-size: 2rem"></i>
-                    <span> Fetching Appeals/Applications From Trab...</span>
+                <div v-if="isLoading" class="flex items-center gap-2 py-2">
+                    <i class="pi pi-spin pi-spinner"></i>
+                    <span class="text-muted-color text-sm">Fetching from TRAB...</span>
                 </div>
-                <label for="appellantList" class="block font-bold mb-2">Appeals From Trab List</label>
-                <Dropdown v-model="selectedApplication" :options="availableApplications" optionLabel="name" optionValue="name" multiple placeholder="Select Appeals" filter filterBy="name" class="w-full" />
-                <Button label="Add Appeals" icon="pi pi-plus" @click="addApplications" class="mt-2" />
-                <div class="mt-2">
-                    <ul>
-                        <li v-for="(appellant, index) in appeal.applicationss" :key="index">
-                            {{ appellant }}
-                            <Button icon="pi pi-times" class="p-button-rounded p-button-danger ml-2" @click="removeApplications(index)" />
-                        </li>
-                    </ul>
+
+                <div v-if="availableApplications.length" class="flex items-center gap-3 mb-2">
+                    <Select v-model="selectedApplication" :options="availableApplications" optionLabel="name" optionValue="name" placeholder="Select Appeals" filter filterBy="name" fluid />
+                    <Button label="Add" icon="pi pi-plus" @click="addApplications" />
+                </div>
+                <div v-if="appeal.applicationss && appeal.applicationss.length" class="flex flex-wrap gap-2">
+                    <Tag v-for="(app, index) in appeal.applicationss" :key="index" severity="secondary" rounded>
+                        <span class="flex items-center gap-1">
+                            {{ app }}
+                            <i class="pi pi-times text-xs cursor-pointer" @click="removeApplications(index)"></i>
+                        </span>
+                    </Tag>
                 </div>
             </div>
-
-            <!--            <div v-if="isAppealsDiv" class="additional-div">-->
-            <!--                <p>The div is now visible because you selected: {{ appeal.selectedType }}</p>-->
-            <!--            </div>-->
         </div>
 
-        <!-- Footer Buttons -->
         <template #footer>
-            <Button label="Cancel" icon="pi pi-times" text @click="hideDialog" />
-            <Button label="Save" icon="pi pi-check" @click="saveAppeal" />
+            <Button label="Cancel" text @click="hideDialog" />
+            <Button label="Save Appeal" class="p-button-success" @click="saveAppeal" />
         </template>
     </Dialog>
 
     <!-- Delete Confirmation Dialog -->
-    <Dialog v-model:visible="deleteApplicationDialog" header="Confirm Delete" :modal="true" :style="{ width: '350px' }">
-        <p>Are you sure you want to delete this application?</p>
+    <Dialog v-model:visible="deleteApplicationDialog" header="Confirm Delete" :modal="true" :style="{ width: '400px' }">
+        <div class="flex items-center gap-3">
+            <i class="pi pi-exclamation-triangle text-3xl text-orange-500"></i>
+            <span>Are you sure you want to delete this appeal?</span>
+        </div>
         <template #footer>
-            <Button label="Cancel" icon="pi pi-times" text @click="deleteApplicationDialog = false" />
-            <Button label="Delete" icon="pi pi-check" severity="danger" @click="deleteApplication" />
+            <Button label="Cancel" text @click="deleteApplicationDialog = false" />
+            <Button label="Delete" severity="danger" @click="deleteApplication" />
         </template>
     </Dialog>
 
-    <Dialog v-model:visible="appealDecisionDialog" header="Update Appeal Decision" :modal="true" :style="{ width: '750px' }">
-        <div>
-            <label for="appealNo" class="block font-bold mb-3">Appeal No</label>
-            <InputText id="appealNo" v-model.trim="appeal.appealNo" readonly="true" fluid />
+    <!-- Update Decision Dialog -->
+    <Dialog v-model:visible="appealDecisionDialog" header="Update Appeal Decision" :modal="true" :style="{ width: '700px' }">
+        <div class="flex flex-col gap-5">
+            <div>
+                <label class="flex items-center gap-2 font-medium mb-2"><i class="pi pi-file text-muted-color"></i> Appeal Number</label>
+                <InputText v-model.trim="appeal.appealNo" readonly fluid />
+            </div>
+
+            <div>
+                <label class="flex items-center gap-2 font-medium mb-2"><i class="pi pi-calendar text-muted-color"></i> Decision Date</label>
+                <DatePicker v-model="appeal.dateOfDecision" dateFormat="yy-mm-dd" fluid showIcon placeholder="Select decision date" />
+            </div>
+
+            <div>
+                <label class="flex items-center gap-2 font-medium mb-2"><i class="pi pi-calendar text-muted-color"></i> Decision Receive Date</label>
+                <DatePicker v-model="appeal.decisionReceiveDate" dateFormat="yy-mm-dd" fluid showIcon placeholder="Select receive date" />
+            </div>
+
+            <div>
+                <label class="flex items-center gap-2 font-medium mb-2"><i class="pi pi-check-circle text-muted-color"></i> Decision Status</label>
+                <Select v-model="appeal.decisionStatus" :options="decisionStatuses" optionLabel="label" optionValue="value" placeholder="Select Status" fluid />
+            </div>
+
+            <div>
+                <label class="flex items-center gap-2 font-medium mb-2"><i class="pi pi-users text-muted-color"></i> Assigned Judge</label>
+                <Select v-model="appeal.assignedJudge" :options="judges" optionLabel="name" optionValue="id" placeholder="Select Judge" filter filterBy="name" fluid />
+            </div>
+
+            <div>
+                <label class="flex items-center gap-2 font-medium mb-2"><i class="pi pi-file-edit text-muted-color"></i> Decision Remarks</label>
+                <Textarea v-model="appeal.decisionRemarks" rows="4" fluid placeholder="Enter detailed decision remarks..." :maxlength="1000" style="resize: none; width: 100%" />
+                <div class="text-right text-muted-color text-xs mt-1">{{ (appeal.decisionRemarks || '').length }}/1000 characters</div>
+            </div>
+
+            <div>
+                <label class="flex items-center gap-2 font-medium mb-2"><i class="pi pi-upload text-muted-color"></i> Supporting Documents</label>
+                <FileUpload mode="advanced" :multiple="true" accept=".pdf,.doc,.docx,.jpg,.png" :maxFileSize="10000000" chooseLabel="Choose Files" class="w-full">
+                    <template #empty>
+                        <div class="flex items-center justify-center flex-col py-4">
+                            <i class="pi pi-cloud-upload text-muted-color text-2xl mb-2"></i>
+                            <p class="text-muted-color text-sm m-0">Drag and drop files here or click to browse</p>
+                            <p class="text-muted-color text-xs m-0">PDF, DOC, DOCX, JPG, PNG (Max 10MB each)</p>
+                        </div>
+                    </template>
+                </FileUpload>
+            </div>
         </div>
 
-        <div class="col-12">
-            <label for="dateOfDecision" class="block font-bold mb-2">Date of Decision</label>
-            <DatePicker id="dateOfDecision" v-model="appeal.dateOfDecision" dateFormat="yy-mm-dd" class="w-full" />
-        </div>
-
-        <div class="col-12">
-            <label for="dateOfDecision" class="block font-bold mb-2">Date of Decision</label>
-            <DatePicker id="dateOfDecision" v-model="appeal.dateOfDecision" dateFormat="yy-mm-dd" class="w-full" />
-        </div>
+        <template #footer>
+            <Button label="Cancel" text @click="appealDecisionDialog = false" />
+            <Button label="Save Decision" class="p-button-success" @click="saveDecision" />
+        </template>
     </Dialog>
 
-    <Dialog v-model:visible="appealViewDialog" header="Appeal Details" :modal="true" :style="{ width: '650px' }">
-        <!-- Grid Structure: Appeal Details -->
-
-        <div class="mt-8">
-            <div class="grid sm:grid-cols-2 gap-4">
-                <div class="grid grid-cols-2 gap-y-2">
-                    <div><strong>Appeal Number:</strong></div>
-                    <div>:{{ appeal.appealNo }}</div>
-
-                    <div><strong>Date of Filing:</strong></div>
-                    <div>:{{ appeal.dateOfFilling }}</div>
-
-                    <div><strong>Date of Decision:</strong></div>
-                    <div>:{{ appeal.dateOfDecision }}</div>
-
-                    <div><strong>Date of Concluding:</strong></div>
-                    <div>:{{ appeal.concludingDate }}</div>
-
-                    <div><strong>Date of Last Order:</strong></div>
-                    <div>:{{ appeal.dateOfLastOrder }}</div>
-
-                    <div><strong>Nature of Request:</strong></div>
-                    <div>:{{ appeal.natureOfRequest }}</div>
-
-                    <div><strong>Notice:</strong></div>
-                    <div>:{{ appeal.notice.noticeNo }}</div>
-
-                    <div><strong>Tax Information:</strong></div>
-                    <div>:{{ appeal.taxes.name }}</div>
-
-                    <div><strong>Status Trend:</strong></div>
-                    <div>:{{ appeal.statusTrend.name }}</div>
+    <!-- View Appeal Dialog -->
+    <Dialog v-model:visible="appealViewDialog" header="Appeal Details" :modal="true" :style="{ width: '900px' }">
+        <!-- Header with appeal info and status badge -->
+        <div class="bg-surface-100 dark:bg-surface-700 rounded-border p-4 mb-4" style="border-left: 4px solid var(--primary-color)">
+            <div class="flex items-center justify-between">
+                <div>
+                    <div class="font-bold text-xl text-surface-900 dark:text-surface-0">Appeal #{{ appeal.appealNo }}</div>
+                    <span class="text-muted-color text-sm">Filed on {{ appeal.dateOfFilling || 'N/A' }}</span>
                 </div>
+                <Tag v-if="appeal.statusTrend" :value="appeal.statusTrend.name === 'NEW' ? 'Pending' : appeal.statusTrend.name" :severity="getStatusSeverity(appeal.statusTrend?.name)" rounded />
             </div>
         </div>
-        <!-- Appeal Details Section (First Column) -->
-        <div class="mt-8">
-            <div class="grid sm:grid-cols-2 gap-4">
-                <div class="grid grid-cols-2 gap-y-2">
-                    <div><strong>Amount List:</strong></div>
-                    <div>
-                        <ul class="p-0 list-none">
-                            <li v-for="(amount, index) in appeal.appealAmount" :key="index">{{ formatAmount(amount.amount) }}</li>
-                        </ul>
+
+        <!-- Tabs -->
+        <Tabs value="0">
+            <TabList>
+                <Tab value="0">Basic Info</Tab>
+                <Tab value="1">Parties</Tab>
+                <Tab value="2">Financial</Tab>
+                <Tab value="3">Additional</Tab>
+            </TabList>
+            <TabPanels>
+                <!-- Basic Info Tab -->
+                <TabPanel value="0">
+                    <div class="grid grid-cols-12 gap-6 pt-4">
+                        <div class="col-span-6">
+                            <div class="font-semibold text-surface-900 dark:text-surface-0 mb-4">Appeal Details</div>
+                            <div class="flex flex-col gap-4">
+                                <div>
+                                    <div class="text-muted-color text-sm">Appeal Number:</div>
+                                    <div class="font-semibold text-surface-900 dark:text-surface-0">{{ appeal.appealNo || '-' }}</div>
+                                </div>
+                                <div>
+                                    <div class="text-muted-color text-sm">Filing Date:</div>
+                                    <div class="font-semibold text-surface-900 dark:text-surface-0">{{ appeal.dateOfFilling || '-' }}</div>
+                                </div>
+                                <div>
+                                    <div class="text-muted-color text-sm">Decision Date:</div>
+                                    <div class="font-semibold text-surface-900 dark:text-surface-0">{{ appeal.dateOfDecision || '-' }}</div>
+                                </div>
+                                <div>
+                                    <div class="text-muted-color text-sm">Tax Type:</div>
+                                    <div class="font-semibold text-surface-900 dark:text-surface-0">{{ appeal.taxes?.name || '-' }}</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-span-6">
+                            <div class="font-semibold text-surface-900 dark:text-surface-0 mb-4">Nature of Request</div>
+                            <div class="text-surface-900 dark:text-surface-0">{{ appeal.natureOfRequest || '-' }}</div>
+                        </div>
                     </div>
+                </TabPanel>
 
-                    <div><strong>Appellant List:</strong></div>
-                    <div>
-                        <ul class="p-0 list-none">
-                            <li v-for="(appellant, index) in appeal.appellantList" :key="index">{{ appellant.name }}</li>
-                        </ul>
+                <!-- Parties Tab -->
+                <TabPanel value="1">
+                    <div class="grid grid-cols-12 gap-6 pt-4">
+                        <div class="col-span-6">
+                            <div class="font-semibold text-surface-900 dark:text-surface-0 mb-4">Appellants</div>
+                            <div v-if="appeal.appellantList && appeal.appellantList.length" class="flex flex-col gap-3">
+                                <div v-for="(appellant, index) in appeal.appellantList" :key="index" class="flex items-center gap-3">
+                                    <div class="flex items-center justify-center rounded-full text-white font-bold text-sm" style="width: 2rem; height: 2rem; background: linear-gradient(135deg, #818cf8, #6366f1)">
+                                        {{ getInitial(appellant.name) }}
+                                    </div>
+                                    <span class="font-medium text-surface-900 dark:text-surface-0">{{ appellant.name }}</span>
+                                </div>
+                            </div>
+                            <span v-else class="text-muted-color">No appellants</span>
+                        </div>
+                        <div class="col-span-6">
+                            <div class="font-semibold text-surface-900 dark:text-surface-0 mb-4">Respondents</div>
+                            <div v-if="appeal.respondentList && appeal.respondentList.length" class="flex flex-col gap-3">
+                                <div v-for="(respondent, index) in appeal.respondentList" :key="index" class="flex items-center gap-3">
+                                    <div class="flex items-center justify-center rounded-full text-white font-bold text-sm" style="width: 2rem; height: 2rem; background: linear-gradient(135deg, #34d399, #10b981)">
+                                        {{ getInitial(respondent.name) }}
+                                    </div>
+                                    <span class="font-medium text-surface-900 dark:text-surface-0">{{ respondent.name }}</span>
+                                </div>
+                            </div>
+                            <span v-else class="text-muted-color">No respondents</span>
+                        </div>
                     </div>
+                </TabPanel>
 
-                    <div><strong>Respondent List:</strong></div>
-                    <div>
-                        <ul class="p-0 list-none">
-                            <li v-for="(respondent, index) in appeal.respondentList" :key="index">{{ respondent.name }}</li>
-                        </ul>
+                <!-- Financial Tab -->
+                <TabPanel value="2">
+                    <div class="grid grid-cols-12 gap-6 pt-4">
+                        <div class="col-span-6">
+                            <div class="font-semibold text-surface-900 dark:text-surface-0 mb-4">Amounts</div>
+                            <div v-if="appeal.appealAmount && appeal.appealAmount.length" class="flex flex-col gap-3">
+                                <div v-for="(amount, index) in appeal.appealAmount" :key="index" class="flex items-center gap-2">
+                                    <i class="pi pi-money-bill text-muted-color"></i>
+                                    <span class="font-medium text-surface-900 dark:text-surface-0">{{ formatAmount(amount.amount) }} {{ amount.currency }}</span>
+                                </div>
+                            </div>
+                            <span v-else class="text-muted-color">No amounts recorded</span>
+                        </div>
+                        <div class="col-span-6">
+                            <div class="flex flex-col gap-4">
+                                <div>
+                                    <div class="text-muted-color text-sm">Financial Year:</div>
+                                    <div class="font-semibold text-surface-900 dark:text-surface-0">{{ appeal.financialYear || '-' }}</div>
+                                </div>
+                                <div>
+                                    <div class="text-muted-color text-sm">Bill No.:</div>
+                                    <div class="font-semibold text-surface-900 dark:text-surface-0">{{ appeal.billNo || '-' }}</div>
+                                </div>
+                                <div>
+                                    <div class="text-muted-color text-sm">Bank No.:</div>
+                                    <div class="font-semibold text-surface-900 dark:text-surface-0">{{ appeal.bankNo || '-' }}</div>
+                                </div>
+                                <div>
+                                    <div class="text-muted-color text-sm">Ass No.:</div>
+                                    <div class="font-semibold text-surface-900 dark:text-surface-0">{{ appeal.assNo || '-' }}</div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </div>
-        </div>
-        <!-- Second Section (Further Details) -->
-        <div class="mt-6">
-            <div class="grid sm:grid-cols-2 gap-4">
-                <div class="grid grid-cols-2 gap-y-2">
-                    <div><strong>Remarks:</strong></div>
-                    <div>:{{ appeal.remarks || 'N/A' }}</div>
+                </TabPanel>
 
-                    <div><strong>Taxed Off:</strong></div>
-                    <div>:{{ appeal.taxedOff || 'N/A' }}</div>
-
-                    <div><strong>Ass No.:</strong></div>
-                    <div>:{{ appeal.assNo || 'N/A' }}</div>
-
-                    <div><strong>Bill No.:</strong></div>
-                    <div>:{{ appeal.billNo || 'N/A' }}</div>
-
-                    <div><strong>Bank No.:</strong></div>
-                    <div>:{{ appeal.bankNo || 'N/A' }}</div>
-
-                    <div><strong>Summary of Decision:</strong></div>
-                    <div>:{{ appeal.summaryOfDecisionFromBoard || 'N/A' }}</div>
-
-                    <div><strong>Decision Status:</strong></div>
-                    <div>:{{ appeal.decisionStatusFromBoard || 'N/A' }}</div>
-
-                    <div><strong>Financial Year:</strong></div>
-                    <div>:{{ appeal.financialYear || 'N/A' }}</div>
-
-                    <div><strong>Progress Status:</strong></div>
-                    <div>:{{ appeal.progressStatus }}</div>
-
-                    <div><strong>Summons List:</strong></div>
-                    <div>
-                        <ul class="p-0 list-none">
-                            <li v-for="(summon, index) in appeal.summonsList" :key="index">{{ summon }}</li>
-                        </ul>
+                <!-- Additional Tab -->
+                <TabPanel value="3">
+                    <div class="flex flex-col gap-4 pt-4">
+                        <div class="grid grid-cols-12 gap-6">
+                            <div class="col-span-6">
+                                <div class="text-muted-color text-sm">Remarks:</div>
+                                <div class="font-medium text-surface-900 dark:text-surface-0">{{ appeal.remarks || '-' }}</div>
+                            </div>
+                            <div class="col-span-6">
+                                <div class="text-muted-color text-sm">Taxed Off:</div>
+                                <div class="font-medium text-surface-900 dark:text-surface-0">{{ appeal.taxedOff || '-' }}</div>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-12 gap-6">
+                            <div class="col-span-6">
+                                <div class="text-muted-color text-sm">Summary of Decision:</div>
+                                <div class="font-medium text-surface-900 dark:text-surface-0">{{ appeal.summaryOfDecisionFromBoard || '-' }}</div>
+                            </div>
+                            <div class="col-span-6">
+                                <div class="text-muted-color text-sm">Decision Status:</div>
+                                <div class="font-medium text-surface-900 dark:text-surface-0">{{ appeal.decisionStatusFromBoard || '-' }}</div>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-12 gap-6">
+                            <div class="col-span-6">
+                                <div class="text-muted-color text-sm">Date of Concluding:</div>
+                                <div class="font-medium text-surface-900 dark:text-surface-0">{{ appeal.concludingDate || '-' }}</div>
+                            </div>
+                            <div class="col-span-6">
+                                <div class="text-muted-color text-sm">Date of Last Order:</div>
+                                <div class="font-medium text-surface-900 dark:text-surface-0">{{ appeal.dateOfLastOrder || '-' }}</div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="text-muted-color text-sm">Progress Status:</div>
+                            <div class="font-medium text-surface-900 dark:text-surface-0">{{ appeal.progressStatus || '-' }}</div>
+                        </div>
                     </div>
+                </TabPanel>
+            </TabPanels>
+        </Tabs>
 
-                    <div><strong>Trab Appeals:</strong></div>
-                    <div>
-                        <ul class="p-0 list-none">
-                            <li v-for="(trabAppeal, index) in appeal.trabAppeals" :key="index">{{ trabAppeal }}</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <template #footer>
+            <Button label="Close" text @click="appealViewDialog = false" />
+        </template>
     </Dialog>
 </template>

@@ -1,7 +1,7 @@
 <script setup>
-import { ApplicationService } from '@/service/ApplicationService'; // Ensure a service exists to handle API requests
+import { ApplicationService } from '@/service/ApplicationService';
 import { useToast } from 'primevue/usetoast';
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, computed } from 'vue';
 import { FilterMatchMode } from '@primevue/core/api';
 import { SetupService } from '@/service/SetupService';
 import { PartyService } from '@/service/PartyService';
@@ -9,8 +9,7 @@ import { PartyService } from '@/service/PartyService';
 // References for data and state
 const applications = ref([]);
 const applicationDialog = ref(false);
-const isAppealsDiv = ref(false);
-const isApplicationDiv = ref(false);
+const applicationViewDialog = ref(false);
 const deleteApplicationDialog = ref(false);
 const application = ref({});
 const submitted = ref(false);
@@ -21,6 +20,12 @@ const taxes = ref([]);
 const availableAppellants = ref([]);
 const availableRespondents = ref([]);
 const availableApplications = ref([]);
+const loading = ref(false);
+
+// Stat cards
+const totalApplications = ref(0);
+const governmentCount = ref(0);
+const othersCount = ref(0);
 
 const applicationTypes = ref([
     { label: 'Government', value: '1' },
@@ -36,8 +41,6 @@ const filters = ref({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS }
 });
 
-// Fetch applications on component mount
-
 onMounted(async () => {
     await fetchApplications();
 
@@ -45,13 +48,13 @@ onMounted(async () => {
         const setups = await SetupService.getSetups('region');
         regions.value = setups.map((setup) => ({
             id: setup.id,
-            name: setup.description // Assuming each `CommonSetup` has `id` and `name`
+            name: setup.description
         }));
 
         const taxTypes = await SetupService.getSetups('taxType');
         taxes.value = taxTypes.map((setup) => ({
             id: setup.id,
-            name: setup.name // Assuming each `CommonSetup` has `id` and `name`
+            name: setup.name
         }));
 
         const appellants = await PartyService.getApplicants();
@@ -66,10 +69,10 @@ onMounted(async () => {
             name: respondent.name
         }));
 
-        const applications = await ApplicationService.getApplications();
-        availableApplications.value = applications.map((application) => ({
-            id: application.id,
-            name: application.applicationNo + ' - ' + application.appellantList[0]?.name
+        const apps = await ApplicationService.getApplications();
+        availableApplications.value = apps.map((app) => ({
+            id: app.id,
+            name: app.applicationNo + ' - ' + (app.appellantList[0]?.name || '')
         }));
     } catch (error) {
         console.error(error);
@@ -78,7 +81,15 @@ onMounted(async () => {
 });
 
 async function fetchApplications() {
-    applications.value = await ApplicationService.getApplications();
+    loading.value = true;
+    const data = await ApplicationService.getApplications();
+    applications.value = data;
+
+    totalApplications.value = data.length;
+    governmentCount.value = data.filter((a) => a.applicationType === '1').length;
+    othersCount.value = data.filter((a) => a.applicationType === '2').length;
+
+    loading.value = false;
 }
 
 function openNew() {
@@ -106,8 +117,18 @@ function openNew() {
 }
 
 function editApplication(app) {
-    application.value = { ...app };
+    application.value = {
+        ...app,
+        taxes: app.taxes?.id || app.taxes,
+        region: app.region?.id || app.region
+    };
+    submitted.value = false;
     applicationDialog.value = true;
+}
+
+function viewApplication(app) {
+    application.value = { ...app };
+    applicationViewDialog.value = true;
 }
 
 function hideDialog() {
@@ -118,52 +139,27 @@ function hideDialog() {
 function saveApplication() {
     submitted.value = true;
 
-    console.log(application.value);
-
     if (application.value.id) {
-        // Update existing application
         ApplicationService.updateApplication(application.value.id, application.value)
             .then(() => {
-                toast.add({
-                    severity: 'success',
-                    summary: 'Success',
-                    detail: 'Application updated successfully',
-                    life: 3000
-                });
+                toast.add({ severity: 'success', summary: 'Success', detail: 'Application updated successfully', life: 3000 });
                 fetchApplications();
                 applicationDialog.value = false;
-
             })
             .catch((error) => {
                 console.error(error);
-                toast.add({
-                    severity: 'error',
-                    summary: 'Error',
-                    detail: 'Failed to update application',
-                    life: 3000
-                });
+                toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to update application', life: 3000 });
             });
     } else {
-        // Create new application
         ApplicationService.createApplication(application.value)
             .then(() => {
-                toast.add({
-                    severity: 'success',
-                    summary: 'Success',
-                    detail: 'Application created successfully',
-                    life: 3000
-                });
+                toast.add({ severity: 'success', summary: 'Success', detail: 'Application created successfully', life: 3000 });
                 fetchApplications();
                 applicationDialog.value = false;
             })
             .catch((error) => {
                 console.error(error);
-                toast.add({
-                    severity: 'error',
-                    summary: 'Error',
-                    detail: 'Failed to create application',
-                    life: 3000
-                });
+                toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to create application', life: 3000 });
             });
     }
 }
@@ -171,55 +167,39 @@ function saveApplication() {
 function deleteApplication() {
     ApplicationService.deleteApplication(application.value.id)
         .then(() => {
-            toast.add({
-                severity: 'success',
-                summary: 'Success',
-                detail: 'Application deleted successfully',
-                life: 3000
-            });
+            toast.add({ severity: 'success', summary: 'Success', detail: 'Application deleted successfully', life: 3000 });
             fetchApplications();
             deleteApplicationDialog.value = false;
         })
         .catch((error) => {
             console.error(error);
-            toast.add({
-                severity: 'error',
-                summary: 'Error',
-                detail: 'Failed to delete application',
-                life: 3000
-            });
+            toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to delete application', life: 3000 });
         });
 }
 
 // Temporary selected items
-const selectedAppellants = ref([]);
-const selectedRespondents = ref([]);
-const selectedApplication = ref([]);
+const selectedAppellants = ref(null);
+const selectedRespondents = ref(null);
+const selectedApplication = ref(null);
 
 function addAppellant() {
     if (selectedAppellants.value) {
-        if (!application.value.appellantList.some((existingAppellant) => existingAppellant.id === selectedAppellants.value.id)) {
+        if (!application.value.appellantList.some((a) => a.id === selectedAppellants.value.id)) {
             application.value.appellantList.push(selectedAppellants.value);
-        } else {
-            console.log('Appellant is already in the list.');
+            selectedAppellants.value = null;
         }
-    } else {
-        console.log('No appellant selected.');
-    }
-}
-function addApplications() {
-    if (selectedApplication.value) {
-        if (!application.value.applicationss.some((existingAppellant) => existingAppellant.id === selectedAppellants.value.id)) {
-            application.value.applicationss.push(selectedApplication.value);
-        } else {
-            console.log('Appellant is already in the list.');
-        }
-    } else {
-        console.log('No appellant selected.');
     }
 }
 
-// Remove appellant from the list
+function addApplications() {
+    if (selectedApplication.value) {
+        if (!application.value.applicationss.some((a) => a.id === selectedApplication.value.id)) {
+            application.value.applicationss.push(selectedApplication.value);
+            selectedApplication.value = null;
+        }
+    }
+}
+
 function removeAppellant(index) {
     application.value.appellantList.splice(index, 1);
 }
@@ -230,196 +210,359 @@ function removeApplications(index) {
 
 function addRespondent() {
     if (selectedRespondents.value) {
-        const exists = application.value.respondentList.some((existingRespondent) => existingRespondent.id === selectedRespondents.value.id);
-
-        if (!exists) {
-            // Add the selected respondent to the list
+        if (!application.value.respondentList.some((r) => r.id === selectedRespondents.value.id)) {
             application.value.respondentList.push(selectedRespondents.value);
-        } else {
-            console.log('Respondent is already in the list.');
+            selectedRespondents.value = null;
         }
-
-        selectedRespondents.value = null;
-    } else {
-        console.log('No respondent selected.');
     }
 }
 
-// Remove respondent from the list
 function removeRespondent(index) {
     application.value.respondentList.splice(index, 1);
 }
 
-function onSelectChange(data) {
-    console.log(data);
+function getInitial(name) {
+    return name ? name.charAt(0).toUpperCase() : '?';
+}
 
+function exportCSV() {
+    dt.value.exportCSV();
+}
+
+function onSelectChange(data) {
     if (data === '1') {
-        isAppealsDiv.value = true;
-        isApplicationDiv.value = false;
+        application.value.isApplicationDiv = true;
     } else {
-        isApplicationDiv.value = true;
-        isAppealsDiv.value = false;
+        application.value.isApplicationDiv = false;
     }
 }
 </script>
 
 <template>
-    <Toolbar class="mb-6">
-        <template #start>
-            <Button label="New" icon="pi pi-plus"  class="mr-2" @click="openNew" />
-        </template>
-        <template #end>
-            <Button label="Export" icon="pi pi-upload" severity="secondary" @click="dt.value.exportCSV()" />
-        </template>
-    </Toolbar>
+    <!-- Page Header -->
+    <div class="flex justify-between items-start mb-6">
+        <div>
+            <h1 class="text-3xl font-bold text-surface-900 dark:text-surface-0 m-0">Applications Management</h1>
+            <p class="text-muted-color mt-1">Manage and track all legal applications efficiently</p>
+        </div>
+    </div>
 
-    <DataTable
-        ref="dt"
-        :value="applications"
-        v-model:selection="selectedApplications"
-        dataKey="id"
-        :paginator="true"
-        :rows="10"
-        :filters="filters"
-        paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
-        :rowsPerPageOptions="[5, 10, 25]"
-        currentPageReportTemplate="Showing {first} to {last} of {totalRecords} applications"
-    >
-        <template #header>
-            <div class="flex flex-wrap gap-2 items-center justify-between">
-                <h4 class="m-0">Manage Applications</h4>
-                <InputText v-model="filters['global'].value" placeholder="Search..." />
+    <!-- Stat Cards -->
+    <div class="grid grid-cols-12 gap-4 mb-6">
+        <div class="col-span-4">
+            <div class="card p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="text-muted-color text-sm font-medium mb-1">Total Applications</div>
+                        <div class="text-2xl font-bold text-surface-900 dark:text-surface-0">{{ totalApplications }}</div>
+                    </div>
+                    <div class="flex items-center justify-center rounded-full" style="width: 2.5rem; height: 2.5rem; background: linear-gradient(135deg, #818cf8, #6366f1)">
+                        <i class="pi pi-file text-white"></i>
+                    </div>
+                </div>
             </div>
-        </template>
+        </div>
+        <div class="col-span-4">
+            <div class="card p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="text-muted-color text-sm font-medium mb-1">Government</div>
+                        <div class="text-2xl font-bold text-surface-900 dark:text-surface-0">{{ governmentCount }}</div>
+                    </div>
+                    <div class="flex items-center justify-center rounded-full" style="width: 2.5rem; height: 2.5rem; background: linear-gradient(135deg, #818cf8, #6366f1)">
+                        <i class="pi pi-building text-white"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-span-4">
+            <div class="card p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="text-muted-color text-sm font-medium mb-1">Others</div>
+                        <div class="text-2xl font-bold text-surface-900 dark:text-surface-0">{{ othersCount }}</div>
+                    </div>
+                    <div class="flex items-center justify-center rounded-full" style="width: 2.5rem; height: 2.5rem; background: linear-gradient(135deg, #818cf8, #6366f1)">
+                        <i class="pi pi-users text-white"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-        <Column selectionMode="multiple" style="width: 3rem"></Column>
-        <Column field="applicationNo" header="Application No" sortable></Column>
-        <Column field="dateOfFilling" header="Date of Filing" sortable></Column>
-        <Column header="Applicants" sortable>
-            <template #body="slotProps">
-                <span v-if="slotProps.data.appellantList && slotProps.data.appellantList.length">
-                    {{ slotProps.data.appellantList.map((appellant) => appellant.name).join(', ') }}
-                </span>
-                <span v-else>No Applicants</span>
-            </template>
-        </Column>
+    <div class="card">
+        <!-- Action Bar -->
+        <div class="flex items-center justify-between mb-4">
+            <Button label="New Application" icon="pi pi-plus" class="p-button-success" @click="openNew" />
+            <div class="flex items-center gap-3">
+                <IconField>
+                    <InputIcon>
+                        <i class="pi pi-search" />
+                    </InputIcon>
+                    <InputText v-model="filters['global'].value" placeholder="Search applications..." />
+                </IconField>
+                <Button label="Export" icon="pi pi-download" severity="secondary" outlined @click="exportCSV($event)" />
+            </div>
+        </div>
 
-        <Column header="Respondents" sortable>
-            <template #body="slotProps">
-                <span v-if="slotProps.data.respondentList && slotProps.data.respondentList.length">
-                    {{ slotProps.data.respondentList.map((appellant) => appellant.name).join(', ') }}
-                </span>
-                <span v-else>No Applicants</span>
-            </template>
-        </Column>
+        <DataTable
+            ref="dt"
+            :value="applications"
+            dataKey="id"
+            :paginator="true"
+            :rows="10"
+            :filters="filters"
+            paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
+            :rowsPerPageOptions="[5, 10, 25]"
+            currentPageReportTemplate="Showing {first} to {last} of {totalRecords} applications"
+            :loading="loading"
+            stripedRows
+        >
+            <Column header="No" style="width: 4rem">
+                <template #body="slotProps">
+                    {{ slotProps.index + 1 }}
+                </template>
+            </Column>
+            <Column field="applicationNo" header="Application No" sortable style="min-width: 10rem">
+                <template #body="slotProps">
+                    <div class="flex items-center gap-2">
+                        <span class="inline-block w-2 h-2 rounded-full bg-blue-500"></span>
+                        <span class="font-medium">{{ slotProps.data.applicationNo }}</span>
+                    </div>
+                </template>
+            </Column>
+            <Column field="dateOfFilling" header="Date of Filing" sortable style="min-width: 10rem">
+                <template #body="slotProps">
+                    <div class="flex items-center gap-2">
+                        <i class="pi pi-calendar text-muted-color"></i>
+                        <span>{{ slotProps.data.dateOfFilling }}</span>
+                    </div>
+                </template>
+            </Column>
+            <Column header="Applicants" sortable style="min-width: 16rem">
+                <template #body="slotProps">
+                    <div v-if="slotProps.data.appellantList && slotProps.data.appellantList.length" class="flex items-center gap-2">
+                        <div class="flex items-center justify-center rounded-full text-white font-bold text-sm" style="width: 2rem; height: 2rem; background: linear-gradient(135deg, #34d399, #10b981)">
+                            {{ getInitial(slotProps.data.appellantList[0].name) }}
+                        </div>
+                        <div>
+                            <div class="font-medium text-surface-900 dark:text-surface-0">{{ slotProps.data.appellantList[0].name }}</div>
+                            <div class="text-muted-color text-xs">{{ slotProps.data.appellantList.length }} applicant(s)</div>
+                        </div>
+                    </div>
+                    <span v-else class="text-muted-color text-sm">No Applicants</span>
+                </template>
+            </Column>
+            <Column header="Respondents" sortable style="min-width: 16rem">
+                <template #body="slotProps">
+                    <div v-if="slotProps.data.respondentList && slotProps.data.respondentList.length" class="flex items-center gap-2">
+                        <div class="flex items-center justify-center rounded-full text-white font-bold text-sm" style="width: 2rem; height: 2rem; background: linear-gradient(135deg, #818cf8, #6366f1)">
+                            {{ getInitial(slotProps.data.respondentList[0].name) }}
+                        </div>
+                        <div>
+                            <div class="font-medium text-surface-900 dark:text-surface-0">{{ slotProps.data.respondentList[0].name }}</div>
+                            <div class="text-muted-color text-xs">{{ slotProps.data.respondentList.length }} respondent(s)</div>
+                        </div>
+                    </div>
+                    <span v-else class="text-muted-color text-sm">No Respondents</span>
+                </template>
+            </Column>
+            <Column :exportable="false" style="min-width: 8rem">
+                <template #body="slotProps">
+                    <div class="flex items-center gap-1">
+                        <Button icon="pi pi-pencil" text rounded @click="editApplication(slotProps.data)" />
+                        <Button icon="pi pi-eye" text rounded severity="info" @click="viewApplication(slotProps.data)" />
+                        <Button icon="pi pi-trash" text rounded severity="danger" @click="application = { ...slotProps.data }; deleteApplicationDialog = true" />
+                    </div>
+                </template>
+            </Column>
+        </DataTable>
+    </div>
 
-        <Column field="natureOfRequest" header="Nature of Request" sortable></Column>
-        <Column field="taxes.name" header="Tax" sortable></Column>
-        <Column style="min-width: 12rem">
-            <template #body="slotProps">
-                <Button icon="pi pi-pencil" outlined rounded class="mr-2" @click="editApplication(slotProps.data)" />
-            </template>
-        </Column>
-    </DataTable>
-
-    <Dialog v-model:visible="applicationDialog" header="Application Details" :modal="true" :style="{ width: '600px' }">
-        <div class="grid">
-            <!-- Taxes -->
-            <div class="col-12">
-                <label for="taxes" class="block font-bold mb-2">Application Types</label>
-                <Select id="type" v-model="application.applicationType" :options="applicationTypes" optionValue="value" optionLabel="label" placeholder="Select Application Type" required class="w-full" />
+    <!-- Application Dialog -->
+    <Dialog v-model:visible="applicationDialog" header="Application Details" :modal="true" :style="{ width: '900px' }">
+        <div class="flex flex-col gap-5">
+            <div class="bg-surface-100 dark:bg-surface-700 rounded-border p-4" style="border-left: 4px solid var(--primary-color)">
+                <div class="font-semibold text-lg text-surface-900 dark:text-surface-0">{{ application.id ? 'Edit Application' : 'Create New Application' }}</div>
+                <span class="text-muted-color text-sm">Fill in the details for the legal application</span>
             </div>
 
-            <div class="col-12">
-                <label for="dateOfFilling" class="block font-bold mb-2">Date of Filing</label>
-                <DatePicker id="dateOfFilling" v-model="application.dateOfFilling" dateFormat="yy-mm-dd" class="w-full" />
+            <div class="grid grid-cols-12 gap-4">
+                <div class="col-span-6">
+                    <label class="flex items-center gap-2 font-medium mb-2"><i class="pi pi-tag text-muted-color"></i> Application Type <span class="text-red-500">*</span></label>
+                    <Select v-model="application.applicationType" :options="applicationTypes" optionValue="value" optionLabel="label" placeholder="Select Application Type" required fluid />
+                </div>
+                <div class="col-span-6">
+                    <label class="flex items-center gap-2 font-medium mb-2"><i class="pi pi-calendar text-muted-color"></i> Date of Filing <span class="text-red-500">*</span></label>
+                    <DatePicker v-model="application.dateOfFilling" dateFormat="yy-mm-dd" fluid showIcon />
+                </div>
             </div>
 
-            <div class="col-12">
-                <label for="notice" class="block font-bold mb-2">Region</label>
-                <Select id="type" v-model="application.region" :options="regions" optionValue="id" optionLabel="name" placeholder="Select Region" required class="w-full" />
+            <div class="grid grid-cols-12 gap-4">
+                <div class="col-span-6">
+                    <label class="flex items-center gap-2 font-medium mb-2"><i class="pi pi-map-marker text-muted-color"></i> Region <span class="text-red-500">*</span></label>
+                    <Select v-model="application.region" :options="regions" optionValue="id" optionLabel="name" placeholder="Select Region" required fluid />
+                </div>
+                <div class="col-span-6">
+                    <label class="flex items-center gap-2 font-medium mb-2">Tax Type <span class="text-red-500">*</span></label>
+                    <Select v-model="application.taxes" :options="taxes" optionValue="id" optionLabel="name" placeholder="Select Tax Type" required fluid />
+                </div>
             </div>
 
-            <!-- Taxes -->
-            <div class="col-12">
-                <label for="taxes" class="block font-bold mb-2">Taxes</label>
-                <Select id="type" v-model="application.taxes" :options="taxes" optionValue="id" optionLabel="name" placeholder="Select Tax  Type" required class="w-full" />
-            </div>
-
-            <!-- Nature of Request -->
-            <div class="col-12">
-                <label for="natureOfRequest" class="block font-bold mb-2">Nature of Request</label>
-                <Textarea id="natureOfRequest" v-model="application.natureOfRequest" required class="w-full" rows="4" />
+            <div>
+                <label class="flex items-center gap-2 font-medium mb-2"><i class="pi pi-file-edit text-muted-color"></i> Nature of Request <span class="text-red-500">*</span></label>
+                <Textarea v-model="application.natureOfRequest" required rows="4" fluid placeholder="Describe the nature of your request..." style="resize: none; width: 100%" />
             </div>
 
             <!-- Appellant List -->
-            <div class="col-12">
-                <label for="appellantList" class="block font-bold mb-2">Appellant List</label>
-                <Dropdown v-model="selectedAppellants" :options="availableAppellants" optionLabel="name" multiple placeholder="Select Appellants" filter filterBy="name" class="w-full" />
-                <Button label="Add Appellant" icon="pi pi-plus" @click="addAppellant" class="mt-2" />
-                <div class="mt-2">
-                    <ul>
-                        <li v-for="(appellant, index) in application.appellantList" :key="index">
+            <div>
+                <label class="flex items-center gap-2 font-medium mb-2"><i class="pi pi-users text-muted-color"></i> Appellant List</label>
+                <div class="grid grid-cols-12 gap-3 mb-2">
+                    <div class="col-span-10">
+                        <Select v-model="selectedAppellants" :options="availableAppellants" optionLabel="name" placeholder="Select Applicants" filter filterBy="name" fluid />
+                    </div>
+                    <div class="col-span-2">
+                        <Button label="Add" icon="pi pi-plus" class="w-full" @click="addAppellant" />
+                    </div>
+                </div>
+                <div v-if="application.appellantList && application.appellantList.length" class="flex flex-wrap gap-2">
+                    <Tag v-for="(appellant, index) in application.appellantList" :key="index" severity="info" rounded>
+                        <span class="flex items-center gap-1">
                             {{ appellant.name }}
-                            <Button icon="pi pi-times" class="p-button-rounded p-button-danger ml-2" @click="removeAppellant(index)" />
-                        </li>
-                    </ul>
+                            <i class="pi pi-times text-xs cursor-pointer" @click="removeAppellant(index)"></i>
+                        </span>
+                    </Tag>
                 </div>
             </div>
 
             <!-- Respondent List -->
-            <div class="col-12">
-                <label for="respondentList" class="block font-bold mb-2">Respondent List</label>
-                <Dropdown v-model="selectedRespondents" :options="availableRespondents" optionLabel="name" multiple placeholder="Select Respondents" filter filterBy="name" class="w-full" />
-                <Button label="Add Respondent" icon="pi pi-plus" @click="addRespondent" class="mt-2" />
-                <div class="mt-2">
-                    <ul>
-                        <li v-for="(respondent, index) in application.respondentList" :key="index">
+            <div>
+                <label class="flex items-center gap-2 font-medium mb-2"><i class="pi pi-id-card text-muted-color"></i> Respondent List</label>
+                <div class="grid grid-cols-12 gap-3 mb-2">
+                    <div class="col-span-10">
+                        <Select v-model="selectedRespondents" :options="availableRespondents" optionLabel="name" placeholder="Select Respondents" filter filterBy="name" fluid />
+                    </div>
+                    <div class="col-span-2">
+                        <Button label="Add" icon="pi pi-plus" class="w-full" @click="addRespondent" />
+                    </div>
+                </div>
+                <div v-if="application.respondentList && application.respondentList.length" class="flex flex-wrap gap-2">
+                    <Tag v-for="(respondent, index) in application.respondentList" :key="index" severity="success" rounded>
+                        <span class="flex items-center gap-1">
                             {{ respondent.name }}
-                            <Button icon="pi pi-times" class="p-button-rounded p-button-danger ml-2" @click="removeRespondent(index)" />
-                        </li>
-                    </ul>
+                            <i class="pi pi-times text-xs cursor-pointer" @click="removeRespondent(index)"></i>
+                        </span>
+                    </Tag>
                 </div>
             </div>
 
-            <div class="col-12">
-                <label for="taxes" class="block font-bold mb-2">Application Types</label>
-                <Select id="type" v-model="application.selectedType" @change="onSelectChange(application.selectedType)" :options="applicationsFor" optionValue="value" optionLabel="label" placeholder="Select Type To Link" required class="w-full" />
-            </div>
+            <!-- Separator -->
+            <div class="border-t border-surface-200 dark:border-surface-600"></div>
 
-            <!-- Appellant List -->
-            <div class="col-12" v-if="isApplicationDiv">
-                <label for="appellantList" class="block font-bold mb-2">Applications List</label>
-                <Dropdown v-model="selectedApplication" :options="availableApplications" optionLabel="name" multiple placeholder="Select Appellants" class="w-full" />
-                <Button label="Add Appellant" icon="pi pi-plus" @click="addApplications" class="mt-2" />
-                <div class="mt-2">
-                    <ul>
-                        <li v-for="(appellant, index) in application.applicationss" :key="index">
-                            {{ appellant.name }}
-                            <Button icon="pi pi-times" class="p-button-rounded p-button-danger ml-2" @click="removeApplications(index)" />
-                        </li>
-                    </ul>
+            <!-- Link Applications/Appeals -->
+            <div>
+                <label class="flex items-center gap-2 font-semibold mb-3 text-lg"><i class="pi pi-link text-muted-color"></i> Link Applications/Appeals</label>
+                <div>
+                    <label class="block text-muted-color text-sm mb-1">Select Type To Link</label>
+                    <Select v-model="application.selectedType" :options="applicationsFor" optionValue="value" optionLabel="label" placeholder="Select Type To Link" fluid @change="onSelectChange(application.selectedType)" />
                 </div>
-            </div>
 
-            <div v-if="isAppealsDiv" class="additional-div">
-                <p>The div is now visible because you selected: {{ application.selectedType }}</p>
+                <div v-if="application.selectedType" class="mt-4">
+                    <div class="grid grid-cols-12 gap-3 mb-2">
+                        <div class="col-span-10">
+                            <Select v-model="selectedApplication" :options="availableApplications" optionLabel="name" placeholder="Select from list" filter filterBy="name" fluid />
+                        </div>
+                        <div class="col-span-2">
+                            <Button label="Add" icon="pi pi-plus" class="w-full p-button-success" @click="addApplications" />
+                        </div>
+                    </div>
+                    <div v-if="application.applicationss && application.applicationss.length" class="flex flex-wrap gap-2">
+                        <Tag v-for="(app, index) in application.applicationss" :key="index" severity="secondary" rounded>
+                            <span class="flex items-center gap-1">
+                                {{ app.name || app }}
+                                <i class="pi pi-times text-xs cursor-pointer" @click="removeApplications(index)"></i>
+                            </span>
+                        </Tag>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <!-- Footer Buttons -->
         <template #footer>
-            <Button label="Cancel" icon="pi pi-times" text @click="hideDialog" />
-            <Button label="Save" icon="pi pi-check" @click="saveApplication" />
+            <Button label="Cancel" text @click="hideDialog" />
+            <Button label="Save Application" class="p-button-success" @click="saveApplication" />
+        </template>
+    </Dialog>
+
+    <!-- View Application Dialog -->
+    <Dialog v-model:visible="applicationViewDialog" header="Application Details" :modal="true" :style="{ width: '800px' }">
+        <div class="bg-surface-100 dark:bg-surface-700 rounded-border p-4 mb-4" style="border-left: 4px solid var(--primary-color)">
+            <div class="flex items-center justify-between">
+                <div>
+                    <div class="font-bold text-xl text-surface-900 dark:text-surface-0">Application #{{ application.applicationNo }}</div>
+                    <span class="text-muted-color text-sm">Filed on {{ application.dateOfFilling || 'N/A' }}</span>
+                </div>
+                <Tag v-if="application.applicationType" :value="application.applicationType === '1' ? 'Government' : 'Others'" :severity="application.applicationType === '1' ? 'info' : 'success'" rounded />
+            </div>
+        </div>
+
+        <div class="flex flex-col gap-4">
+            <div class="grid grid-cols-12 gap-4">
+                <div class="col-span-6">
+                    <div class="text-muted-color text-sm">Application Number:</div>
+                    <div class="font-semibold text-surface-900 dark:text-surface-0">{{ application.applicationNo || '-' }}</div>
+                </div>
+                <div class="col-span-6">
+                    <div class="text-muted-color text-sm">Tax Type:</div>
+                    <div class="font-semibold text-surface-900 dark:text-surface-0">{{ application.taxes?.name || '-' }}</div>
+                </div>
+            </div>
+            <div>
+                <div class="text-muted-color text-sm">Nature of Request:</div>
+                <div class="font-medium text-surface-900 dark:text-surface-0">{{ application.natureOfRequest || '-' }}</div>
+            </div>
+            <div class="grid grid-cols-12 gap-4">
+                <div class="col-span-6">
+                    <div class="text-muted-color text-sm mb-2">Applicants</div>
+                    <div v-if="application.appellantList && application.appellantList.length" class="flex flex-col gap-2">
+                        <div v-for="(appellant, index) in application.appellantList" :key="index" class="flex items-center gap-2">
+                            <div class="flex items-center justify-center rounded-full text-white font-bold text-xs" style="width: 1.5rem; height: 1.5rem; background: linear-gradient(135deg, #34d399, #10b981)">
+                                {{ getInitial(appellant.name) }}
+                            </div>
+                            <span class="text-sm">{{ appellant.name }}</span>
+                        </div>
+                    </div>
+                    <span v-else class="text-muted-color text-sm">None</span>
+                </div>
+                <div class="col-span-6">
+                    <div class="text-muted-color text-sm mb-2">Respondents</div>
+                    <div v-if="application.respondentList && application.respondentList.length" class="flex flex-col gap-2">
+                        <div v-for="(respondent, index) in application.respondentList" :key="index" class="flex items-center gap-2">
+                            <div class="flex items-center justify-center rounded-full text-white font-bold text-xs" style="width: 1.5rem; height: 1.5rem; background: linear-gradient(135deg, #818cf8, #6366f1)">
+                                {{ getInitial(respondent.name) }}
+                            </div>
+                            <span class="text-sm">{{ respondent.name }}</span>
+                        </div>
+                    </div>
+                    <span v-else class="text-muted-color text-sm">None</span>
+                </div>
+            </div>
+        </div>
+
+        <template #footer>
+            <Button label="Close" text @click="applicationViewDialog = false" />
         </template>
     </Dialog>
 
     <!-- Delete Confirmation Dialog -->
-    <Dialog v-model:visible="deleteApplicationDialog" header="Confirm Delete" :modal="true" :style="{ width: '350px' }">
-        <p>Are you sure you want to delete this application?</p>
+    <Dialog v-model:visible="deleteApplicationDialog" header="Confirm Delete" :modal="true" :style="{ width: '400px' }">
+        <div class="flex items-center gap-3">
+            <i class="pi pi-exclamation-triangle text-3xl text-orange-500"></i>
+            <span>Are you sure you want to delete this application?</span>
+        </div>
         <template #footer>
-            <Button label="Cancel" icon="pi pi-times" text @click="deleteApplicationDialog = false" />
-            <Button label="Delete" icon="pi pi-check" severity="danger" @click="deleteApplication" />
+            <Button label="Cancel" text @click="deleteApplicationDialog = false" />
+            <Button label="Delete" severity="danger" @click="deleteApplication" />
         </template>
     </Dialog>
 </template>

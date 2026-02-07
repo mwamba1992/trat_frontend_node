@@ -3,7 +3,71 @@ import App from './App.vue';
 import router from './router';
 
 import Aura from '@primevue/themes/aura';
+import { definePreset } from '@primevue/themes';
 import PrimeVue from 'primevue/config';
+
+const TratPreset = definePreset(Aura, {
+    primitive: {
+        green: {
+            50: '#ecfdf5',
+            100: '#d1fae5',
+            200: '#a7f3d0',
+            300: '#6ee7b7',
+            400: '#059669',
+            500: '#047857',
+            600: '#065f46',
+            700: '#064e3b',
+            800: '#022c22',
+            900: '#022c22',
+            950: '#022c22'
+        }
+    },
+    semantic: {
+        primary: {
+            50: '#ecfdf5',
+            100: '#d1fae5',
+            200: '#a7f3d0',
+            300: '#6ee7b7',
+            400: '#34d399',
+            500: '#10b981',
+            600: '#059669',
+            700: '#047857',
+            800: '#065f46',
+            900: '#064e3b',
+            950: '#022c22'
+        },
+        colorScheme: {
+            light: {
+                primary: {
+                    color: '#047857',
+                    contrastColor: '#ffffff',
+                    hoverColor: '#065f46',
+                    activeColor: '#064e3b'
+                },
+                highlight: {
+                    background: '#ecfdf5',
+                    focusBackground: '#d1fae5',
+                    color: '#047857',
+                    focusColor: '#065f46'
+                }
+            },
+            dark: {
+                primary: {
+                    color: '#34d399',
+                    contrastColor: '#064e3b',
+                    hoverColor: '#6ee7b7',
+                    activeColor: '#a7f3d0'
+                },
+                highlight: {
+                    background: 'color-mix(in srgb, #34d399, transparent 84%)',
+                    focusBackground: 'color-mix(in srgb, #34d399, transparent 76%)',
+                    color: 'rgba(255,255,255,.87)',
+                    focusColor: 'rgba(255,255,255,.87)'
+                }
+            }
+        }
+    }
+});
 import ConfirmationService from 'primevue/confirmationservice';
 import ToastService from 'primevue/toastservice';
 
@@ -97,7 +161,7 @@ app.mixin({
 app.use(router);
 app.use(PrimeVue, {
     theme: {
-        preset: Aura,
+        preset: TratPreset,
         options: {
             darkModeSelector: '.app-dark'
         }
