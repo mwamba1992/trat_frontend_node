@@ -754,7 +754,7 @@ function exportCSV() {
                         <InputNumber v-model="appealAmount.amount" placeholder="Enter Amount" mode="decimal" min="0" :minFractionDigits="2" :maxFractionDigits="5" fluid />
                     </div>
                     <div class="col-span-5">
-                        <Select v-model="appealAmount.currency" :options="currencies" optionLabel="name" optionValue="name" placeholder="Currency" fluid />
+                        <Select v-model="appealAmount.currency" :options="currencies" optionLabel="name" optionValue="id" placeholder="Currency" fluid />
                     </div>
                     <div class="col-span-2">
                         <Button label="Add" icon="pi pi-plus" class="w-full p-button-success" @click="addAmountCurrency" />
