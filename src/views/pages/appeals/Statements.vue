@@ -977,30 +977,10 @@ function exportCSV() {
                             <div v-if="appeal.appealAmount && appeal.appealAmount.length" class="flex flex-col gap-3">
                                 <div v-for="(amount, index) in appeal.appealAmount" :key="index" class="flex items-center gap-2">
                                     <i class="pi pi-money-bill text-muted-color"></i>
-                                    <span class="font-medium text-surface-900 dark:text-surface-0">{{ formatAmount(amount.amount) }} {{ amount.currency }}</span>
+                                    <span class="font-medium text-surface-900 dark:text-surface-0">{{ formatAmount(amount.amount) }} {{ amount.currency?.name || amount.currency }}</span>
                                 </div>
                             </div>
                             <span v-else class="text-muted-color">No amounts recorded</span>
-                        </div>
-                        <div class="col-span-6">
-                            <div class="flex flex-col gap-4">
-                                <div>
-                                    <div class="text-muted-color text-sm">Financial Year:</div>
-                                    <div class="font-semibold text-surface-900 dark:text-surface-0">{{ appeal.financialYear || '-' }}</div>
-                                </div>
-                                <div>
-                                    <div class="text-muted-color text-sm">Bill No.:</div>
-                                    <div class="font-semibold text-surface-900 dark:text-surface-0">{{ appeal.billNo || '-' }}</div>
-                                </div>
-                                <div>
-                                    <div class="text-muted-color text-sm">Bank No.:</div>
-                                    <div class="font-semibold text-surface-900 dark:text-surface-0">{{ appeal.bankNo || '-' }}</div>
-                                </div>
-                                <div>
-                                    <div class="text-muted-color text-sm">Ass No.:</div>
-                                    <div class="font-semibold text-surface-900 dark:text-surface-0">{{ appeal.assNo || '-' }}</div>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </TabPanel>
