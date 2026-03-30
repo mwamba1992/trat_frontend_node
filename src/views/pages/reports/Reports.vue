@@ -209,16 +209,21 @@ function getCategoryLabel(key) {
 </script>
 
 <template>
-    <!-- Page Header -->
-    <div class="flex justify-between items-start mb-6">
-        <div>
-            <h1 class="text-3xl font-bold text-surface-900 dark:text-surface-0 m-0">Reports Dashboard</h1>
-            <p class="text-muted-color mt-1">Select a report category and choose a report to generate</p>
-        </div>
-    </div>
-
+    <!-- Breadcrumb -->
     <!-- Reports Layout -->
     <div class="card">
+        <!-- Breadcrumb -->
+        <Breadcrumb :home="{ icon: 'pi pi-home', to: '/dashboard' }" :model="[{ label: 'Reports' }]" class="mb-3" />
+
+        <!-- Page Header -->
+        <div class="flex justify-between items-start mb-4">
+            <div>
+                <h1 class="text-3xl font-bold text-surface-900 dark:text-surface-0 m-0">Reports Dashboard</h1>
+                <p class="text-sm text-muted-color mt-1 opacity-70">Select a report category and choose a report to generate</p>
+            </div>
+        </div>
+
+        <hr class="mb-4 -mx-6 border-surface-200 dark:border-surface-700" />
         <div class="flex gap-0" style="min-height: 500px">
             <!-- Left Sidebar - Categories -->
             <div class="border-r pr-6" style="min-width: 240px">

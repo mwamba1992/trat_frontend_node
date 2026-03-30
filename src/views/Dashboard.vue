@@ -158,13 +158,24 @@ function buildMonthlyTrendData(summary) {
     const decidedData = summary?.find((item) => item.DECIDED)?.DECIDED || Array(12).fill(0);
     const totalData = pendingData.map((v, i) => v + (newData[i] || 0) + (decidedData[i] || 0));
 
+    // Truncate at last month with data — don't plot future zeros, but show at least 6 months
+    const allMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    let lastIndex = totalData.length - 1;
+    while (lastIndex > 0 && totalData[lastIndex] === 0) lastIndex--;
+    const endIndex = Math.max(lastIndex, 5);
+    const labels = allMonths.slice(0, endIndex + 1);
+    const data = totalData.slice(0, lastIndex + 1);
+    // Pad with null so the line stops but the axis continues
+    while (data.length < labels.length) data.push(null);
+
     return {
-        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+        labels,
         datasets: [
             {
                 label: 'Total Cases',
-                data: totalData,
+                data,
                 fill: true,
+                spanGaps: false,
                 borderColor: '#10b981',
                 backgroundColor: 'rgba(16, 185, 129, 0.08)',
                 tension: 0.4,
@@ -253,12 +264,12 @@ function buildPieOptions() {
         maintainAspectRatio: false,
         plugins: {
             legend: {
-                position: 'bottom',
+                position: 'right',
                 labels: {
                     usePointStyle: true,
                     padding: 8,
                     font: { size: 10 },
-                    boxWidth: 6
+                    boxWidth: 8
                 }
             },
             tooltip: {
@@ -281,12 +292,12 @@ function buildDoughnutOptions() {
         cutout: '60%',
         plugins: {
             legend: {
-                position: 'bottom',
+                position: 'right',
                 labels: {
                     usePointStyle: true,
                     padding: 8,
                     font: { size: 10 },
-                    boxWidth: 6,
+                    boxWidth: 8,
                     generateLabels(chart) {
                         const data = chart.data;
                         if (!data.labels || !data.datasets.length) return [];
@@ -428,7 +439,7 @@ watch([getPrimary, getSurface, isDarkTheme], async () => {
 
         <!-- Monthly Trend + Case Status Row -->
         <div class="grid grid-cols-12 gap-4 items-stretch">
-            <div class="col-span-12 xl:col-span-8">
+            <div class="col-span-12 xl:col-span-7">
                 <div class="card mb-0 h-full">
                     <div class="flex justify-between items-center mb-5">
                         <div class="flex items-center gap-3">
@@ -450,7 +461,7 @@ watch([getPrimary, getSurface, isDarkTheme], async () => {
                     </div>
                 </div>
             </div>
-            <div class="col-span-12 xl:col-span-4">
+            <div class="col-span-12 xl:col-span-5">
                 <div class="card mb-0 h-full">
                     <div class="flex items-center gap-3 mb-5">
                         <div class="flex items-center justify-center rounded-border" style="width: 2.5rem; height: 2.5rem; background: linear-gradient(135deg, #ede9fe, #ddd6fe)">
@@ -461,8 +472,8 @@ watch([getPrimary, getSurface, isDarkTheme], async () => {
                             <span class="text-muted-color text-sm">Current breakdown</span>
                         </div>
                     </div>
-                    <div class="flex items-center justify-center h-64">
-                        <Chart type="doughnut" :data="caseStatusData" :options="caseStatusOptions" />
+                    <div class="w-full" style="height: 20rem">
+                        <Chart type="doughnut" :data="caseStatusData" :options="caseStatusOptions" class="w-full h-full" />
                     </div>
                 </div>
             </div>
@@ -470,7 +481,7 @@ watch([getPrimary, getSurface, isDarkTheme], async () => {
 
         <!-- Yearly Cases + Case Distribution -->
         <div class="grid grid-cols-12 gap-4 items-stretch">
-            <div class="col-span-12 xl:col-span-8">
+            <div class="col-span-12 xl:col-span-7">
                 <div class="card mb-0 h-full">
                     <div class="flex justify-between items-center mb-5">
                         <div class="flex items-center gap-3">
@@ -506,7 +517,7 @@ watch([getPrimary, getSurface, isDarkTheme], async () => {
                     </div>
                 </div>
             </div>
-            <div class="col-span-12 xl:col-span-4">
+            <div class="col-span-12 xl:col-span-5">
                 <div class="card mb-0 h-full">
                     <div class="flex items-center gap-3 mb-5">
                         <div class="flex items-center justify-center rounded-border" style="width: 2.5rem; height: 2.5rem; background: linear-gradient(135deg, #fff7ed, #fed7aa)">
@@ -517,8 +528,8 @@ watch([getPrimary, getSurface, isDarkTheme], async () => {
                             <span class="text-muted-color text-sm">Cases by tax category</span>
                         </div>
                     </div>
-                    <div class="flex items-center justify-center h-72">
-                        <Chart type="pie" :data="caseDistributionData" :options="caseDistributionOptions" />
+                    <div class="w-full" style="height: 22rem">
+                        <Chart type="pie" :data="caseDistributionData" :options="caseDistributionOptions" class="w-full h-full" />
                     </div>
                 </div>
             </div>

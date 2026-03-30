@@ -293,16 +293,25 @@ function getInitial(name) {
 </script>
 
 <template>
-    <!-- Page Header -->
-    <div class="flex justify-between items-start mb-6">
-        <div>
-            <h1 class="text-3xl font-bold text-surface-900 dark:text-surface-0 m-0">Bills Management</h1>
-            <p class="text-muted-color mt-1">Create, manage and track government bills efficiently</p>
+    <div class="card">
+        <!-- Breadcrumb -->
+        <Breadcrumb :home="{ icon: 'pi pi-home', to: '/dashboard' }" :model="[{ label: 'Payments' }, { label: 'Bill' }]" class="mb-3" />
+
+        <!-- Page Header -->
+        <div class="flex justify-between items-start">
+            <div>
+                <h1 class="text-3xl font-bold text-surface-900 dark:text-surface-0 m-0">Bills Management</h1>
+                <p class="text-sm text-muted-color mt-1 opacity-70">Create, manage and track government bills efficiently</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span class="text-sm text-muted-color">{{ totalBills }} bills</span>
+            </div>
         </div>
     </div>
 
     <!-- Stat Cards -->
-    <div class="grid grid-cols-12 gap-4 mb-6">
+    <div class="grid grid-cols-12 gap-4 mb-3">
         <div class="col-span-3">
             <div class="card p-4">
                 <div class="flex items-center justify-between">

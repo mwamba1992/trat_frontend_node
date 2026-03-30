@@ -483,17 +483,26 @@ function exportCSV() {
 </script>
 
 <template>
-    <!-- Page Header -->
-    <div class="flex justify-between items-start mb-6">
-        <div>
-            <h1 class="text-3xl font-bold text-surface-900 dark:text-surface-0 m-0">Appeals Management</h1>
-            <p class="text-muted-color mt-1">Manage legal appeals and statements efficiently</p>
+    <!-- Breadcrumb -->
+    <div class="card">
+        <!-- Breadcrumb -->
+        <Breadcrumb :home="{ icon: 'pi pi-home', to: '/dashboard' }" :model="[{ label: 'Appeals' }, { label: 'Statements' }]" class="mb-3" />
+
+        <!-- Page Header -->
+        <div class="flex justify-between items-start mb-4">
+            <div>
+                <h1 class="text-3xl font-bold text-surface-900 dark:text-surface-0 m-0">Appeals Management</h1>
+                <p class="text-sm text-muted-color mt-1 opacity-70">Manage legal appeals and statements efficiently</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span class="text-sm text-muted-color">{{ filteredAppeals?.length || 0 }} appeals</span>
+            </div>
         </div>
-        <span class="text-sm text-muted-color">{{ filteredAppeals?.length || 0 }} appeals</span>
     </div>
 
     <!-- Stat Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
         <div>
             <div class="card mb-0 h-full">
                 <div class="flex justify-between items-center mb-3">

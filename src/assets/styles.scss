@@ -15,3 +15,21 @@
     outline: none;
 }
 
+/* Breadcrumb: strip default box styling so it blends into parent card */
+.p-breadcrumb {
+    background: transparent !important;
+    padding: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+}
+
+.p-breadcrumb .p-breadcrumb-item-link {
+    color: var(--p-text-muted-color) !important;
+    font-size: 0.8125rem;
+}
+
+.p-breadcrumb .p-breadcrumb-separator {
+    color: var(--p-text-muted-color) !important;
+    opacity: 0.5;
+}
+

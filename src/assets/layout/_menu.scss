@@ -10,9 +10,14 @@
     transition:
         transform var(--layout-section-transition-duration),
         left var(--layout-section-transition-duration);
-    background-color: var(--surface-overlay);
-    border-right: 1px solid var(--surface-border);
+    background-color: #f8faf9;
+    border-right: 1px solid #e5ebe8;
     padding: 1rem 1rem;
+}
+
+:root[class*='app-dark'] .layout-sidebar {
+    background-color: #0c1a14;
+    border-right-color: #1a2e24;
 }
 
 .layout-menu {

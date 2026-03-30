@@ -41,6 +41,11 @@ function getStatusLabel(noticeType) {
     return noticeType === '1' ? 'info' : 'success';
 }
 
+function getBillStatus(bill) {
+    if (!bill) return 'Exempted';
+    return bill.billPayed ? 'Paid' : 'Pending';
+}
+
 function getBill(bill) {
     if (!bill) {
         return 'Exempted';
@@ -50,10 +55,9 @@ function getBill(bill) {
 }
 
 function getBillSeverity(bill) {
-    if (!bill) {
-        return 'success';
-    }
-    return 'info';
+    if (!bill) return 'success';
+    if (bill.billPayed) return 'success';
+    return 'warn';
 }
 
 function openNew() {
@@ -120,20 +124,25 @@ function getInitial(name) {
 </script>
 
 <template>
-    <!-- Page Header -->
-    <div class="flex justify-between items-start mb-6">
-        <div>
-            <h1 class="text-3xl font-bold text-surface-900 dark:text-surface-0 m-0">Legal Notices</h1>
-            <p class="text-muted-color mt-1">Manage and track all legal notices and appeals</p>
-        </div>
-        <div class="flex items-center gap-2">
-            <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
-            <span class="text-sm text-muted-color">{{ notices?.length || 0 }} notices</span>
-        </div>
-    </div>
-
     <div class="card">
-        <div class="flex items-center justify-between mb-6">
+        <!-- Breadcrumb -->
+        <Breadcrumb :home="{ icon: 'pi pi-home', to: '/dashboard' }" :model="[{ label: 'Appeals' }, { label: 'Notices' }]" class="mb-3" />
+
+        <!-- Page Header -->
+        <div class="flex justify-between items-start mb-4">
+            <div>
+                <h1 class="text-3xl font-bold text-surface-900 dark:text-surface-0 m-0">Legal Notices</h1>
+                <p class="text-sm text-muted-color mt-1 opacity-70">Manage and track all legal notices and appeals</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span class="text-sm text-muted-color">{{ notices?.length || 0 }} notices</span>
+            </div>
+        </div>
+
+        <hr class="mb-4 -mx-6 border-surface-200 dark:border-surface-700" />
+
+        <div class="flex items-center justify-between mb-4">
             <Button label="New" icon="pi pi-plus" class="mr-2" @click="openNew" />
             <div class="flex items-center gap-3">
                 <IconField>
@@ -186,7 +195,7 @@ function getInitial(name) {
                     </div>
                 </template>
             </Column>
-            <Column field="respondentFullName" header="Against" sortable style="min-width: 16rem">
+            <Column field="respondentFullName" header="Against" sortable style="min-width: 18rem; padding-left: 1rem; padding-right: 1rem">
                 <template #body="slotProps">
                     <div class="flex items-center gap-3">
                         <div class="flex items-center justify-center rounded-full text-white font-bold text-sm" style="width: 2.2rem; height: 2.2rem; background: linear-gradient(135deg, #34d399, #10b981)">
@@ -207,16 +216,17 @@ function getInitial(name) {
                     </div>
                 </template>
             </Column>
-            <Column field="bill" header="Bill Status" sortable style="min-width: 10rem">
+            <Column field="bill" header="Bill Status" sortable style="min-width: 8rem">
                 <template #body="slotProps">
-                    <Tag :value="getBill(slotProps.data.bill)" :severity="getBillSeverity(slotProps.data.bill)" rounded>
-                        <template #default>
-                            <span class="flex items-center gap-1">
-                                <span class="inline-block w-1.5 h-1.5 rounded-full" :class="slotProps.data.bill ? 'bg-teal-400' : 'bg-emerald-400'"></span>
-                                {{ getBill(slotProps.data.bill) }}
+                    <div class="flex flex-col gap-1">
+                        <Tag :severity="getBillSeverity(slotProps.data.bill)" rounded>
+                            <span class="flex items-center gap-1.5">
+                                <span class="inline-block w-1.5 h-1.5 rounded-full" :class="getBillStatus(slotProps.data.bill) === 'Paid' ? 'bg-emerald-400' : getBillStatus(slotProps.data.bill) === 'Exempted' ? 'bg-emerald-400' : 'bg-yellow-400'"></span>
+                                {{ getBillStatus(slotProps.data.bill) }}
                             </span>
-                        </template>
-                    </Tag>
+                        </Tag>
+                        <span v-if="slotProps.data.bill" class="text-xs text-muted-color">{{ slotProps.data.bill.billControlNumber }}</span>
+                    </div>
                 </template>
             </Column>
             <Column :exportable="false" style="min-width: 8rem">

@@ -193,16 +193,25 @@ function getStatusSeverity(status) {
 </script>
 
 <template>
-    <!-- Page Header -->
-    <div class="flex justify-between items-start mb-6">
-        <div>
-            <h1 class="text-3xl font-bold text-surface-900 dark:text-surface-0 m-0">Summons Management</h1>
-            <p class="text-muted-color mt-1">Create and manage court hearing summons</p>
+    <div class="card">
+        <!-- Breadcrumb -->
+        <Breadcrumb :home="{ icon: 'pi pi-home', to: '/dashboard' }" :model="[{ label: 'Appeals' }, { label: 'Hearings' }]" class="mb-3" />
+
+        <!-- Page Header -->
+        <div class="flex justify-between items-start">
+            <div>
+                <h1 class="text-3xl font-bold text-surface-900 dark:text-surface-0 m-0">Summons Management</h1>
+                <p class="text-sm text-muted-color mt-1 opacity-70">Create and manage court hearing summons</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span class="text-sm text-muted-color">{{ totalSummons }} summons</span>
+            </div>
         </div>
     </div>
 
     <!-- Stats -->
-    <div class="grid grid-cols-12 gap-4 mb-4">
+    <div class="grid grid-cols-12 gap-4 mb-3">
         <div class="col-span-12 md:col-span-3">
             <div class="card mb-0">
                 <div class="flex justify-between items-center">

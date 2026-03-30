@@ -240,16 +240,25 @@ function exportCSV() {
 </script>
 
 <template>
-    <!-- Page Header -->
-    <div class="flex justify-between items-start mb-6">
-        <div>
-            <h1 class="text-3xl font-bold text-surface-900 dark:text-surface-0 m-0">Payments Management</h1>
-            <p class="text-muted-color mt-1">Track and manage all payment transactions</p>
+    <div class="card">
+        <!-- Breadcrumb -->
+        <Breadcrumb :home="{ icon: 'pi pi-home', to: '/dashboard' }" :model="[{ label: 'Payments' }, { label: 'Payment' }]" class="mb-3" />
+
+        <!-- Page Header -->
+        <div class="flex justify-between items-start">
+            <div>
+                <h1 class="text-3xl font-bold text-surface-900 dark:text-surface-0 m-0">Payments Management</h1>
+                <p class="text-sm text-muted-color mt-1 opacity-70">Track and manage all payment transactions</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span class="text-sm text-muted-color">{{ totalPayments }} payments</span>
+            </div>
         </div>
     </div>
 
     <!-- Date Filter Card -->
-    <div class="card mb-6">
+    <div class="card mb-3">
         <div class="flex items-center justify-between mb-3">
             <div class="font-semibold text-lg text-surface-900 dark:text-surface-0">Date Filter</div>
             <Button label="Clear Filters" text size="small" @click="clearFilters" />
@@ -275,7 +284,7 @@ function exportCSV() {
     </div>
 
     <!-- Stat Cards -->
-    <div class="grid grid-cols-12 gap-4 mb-6">
+    <div class="grid grid-cols-12 gap-4 mb-3">
         <div class="col-span-3">
             <div class="card p-4">
                 <div class="flex items-center justify-between">
