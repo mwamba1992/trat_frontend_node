@@ -22,5 +22,8 @@ export const PartyService = {
     },
     deleteParty(id) {
         return api.delete(`${BASE_URL}/${id}`).then((response) => response.data);
+    },
+    lookupTin(tin) {
+        return api.get(`${BASE_URL}/tin-lookup/${tin}`).then((response) => response.data);
     }
 };

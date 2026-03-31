@@ -16,6 +16,10 @@ const submitted = ref(false);
 const partyDialog = ref(false);
 const deleteDialog = ref(false);
 
+const tinVerified = ref(false);
+const tinVerifying = ref(false);
+const tinMessage = ref('');
+
 const filters = ref({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS }
 });
@@ -44,6 +48,9 @@ function fetchParties() {
 function openNew() {
     party.value = { name: '', phone_number: '', email_address: '', nature_of_business: '', tin_number: '', income_tax_file_number: '', vat_number: '', type: null };
     submitted.value = false;
+    tinVerified.value = false;
+    tinVerifying.value = false;
+    tinMessage.value = '';
     partyDialog.value = true;
 }
 
@@ -51,7 +58,110 @@ function editParty(selectedParty) {
     party.value = { ...selectedParty };
     party.value.type = selectedParty.type?.id || null;
     submitted.value = false;
+    tinVerified.value = false;
+    tinVerifying.value = false;
+    tinMessage.value = '';
     partyDialog.value = true;
+}
+
+function onTinChange() {
+    tinVerified.value = false;
+    tinMessage.value = '';
+}
+
+async function verifyTin() {
+    const tin = party.value.tin_number;
+    if (!tin || tin.replace(/[-_\s]/g, '').length < 3) {
+        toast.add({ severity: 'warn', summary: 'Warning', detail: 'Please enter a valid TIN number', life: 3000 });
+        return;
+    }
+
+    tinVerifying.value = true;
+    tinMessage.value = '';
+
+    try {
+        const res = await PartyService.lookupTin(tin);
+
+        if (res.status) {
+            const d = res.data;
+            const name = d.CompanyName
+                ? d.CompanyName
+                : [d.FirstName, d.MiddleName, d.LastName].filter(Boolean).join(' ');
+
+            party.value.name = name;
+            party.value.phone_number = d.Mobile || '';
+            party.value.email_address = d.Email || '';
+            party.value.vat_number = d.Vrn || '';
+            party.value.nature_of_business = d.BusinessType || '';
+
+            tinVerified.value = true;
+
+            if (res.existingParty) {
+                // Party already exists — switch to edit mode
+                party.value.id = res.existingParty.id;
+                party.value.type = res.existingParty.type?.id || party.value.type;
+                party.value.income_tax_file_number = res.existingParty.income_tax_file_number || party.value.income_tax_file_number;
+                tinMessage.value = `Party already exists — details updated from TRA: ${name}`;
+                toast.add({ severity: 'info', summary: 'Existing Party', detail: `Party "${name}" already exists. Details updated from TRA.`, life: 5000 });
+            } else {
+                tinMessage.value = `TIN Verified: ${name}`;
+                toast.add({ severity: 'success', summary: 'TIN Verified', detail: name, life: 3000 });
+            }
+        } else {
+            tinVerified.value = false;
+            tinMessage.value = res.description || 'TIN not found';
+            toast.add({ severity: 'warn', summary: 'TIN Not Found', detail: res.description || 'TIN not found in TRA. You can enter details manually.', life: 5000 });
+        }
+    } catch (err) {
+        tinVerified.value = false;
+        tinMessage.value = 'Verification failed';
+        toast.add({ severity: 'error', summary: 'Error', detail: 'TIN verification failed. You can enter details manually.', life: 5000 });
+    } finally {
+        tinVerifying.value = false;
+    }
+}
+
+const verifyingPartyId = ref(null);
+
+async function verifyPartyTin(selectedParty) {
+    const tin = selectedParty.tin_number;
+    if (!tin || tin.replace(/[-_\s]/g, '').length < 3) {
+        toast.add({ severity: 'warn', summary: 'No TIN', detail: 'This party has no TIN number to verify', life: 3000 });
+        return;
+    }
+
+    verifyingPartyId.value = selectedParty.id;
+
+    try {
+        const res = await PartyService.lookupTin(tin);
+
+        if (res.status) {
+            const d = res.data;
+            const name = d.CompanyName
+                ? d.CompanyName
+                : [d.FirstName, d.MiddleName, d.LastName].filter(Boolean).join(' ');
+
+            const updatedData = {
+                ...selectedParty,
+                name: name,
+                phone_number: d.Mobile || selectedParty.phone_number,
+                email_address: d.Email || selectedParty.email_address,
+                vat_number: d.Vrn || selectedParty.vat_number,
+                nature_of_business: d.BusinessType || selectedParty.nature_of_business,
+                type: selectedParty.type?.id || selectedParty.type,
+            };
+
+            await PartyService.updateParty(selectedParty.id, updatedData);
+            toast.add({ severity: 'success', summary: 'TIN Verified', detail: `"${name}" — details updated from TRA`, life: 4000 });
+            fetchParties();
+        } else {
+            toast.add({ severity: 'warn', summary: 'TIN Not Found', detail: res.description || 'TIN not found in TRA', life: 4000 });
+        }
+    } catch (err) {
+        toast.add({ severity: 'error', summary: 'Error', detail: 'TIN verification failed', life: 3000 });
+    } finally {
+        verifyingPartyId.value = null;
+    }
 }
 
 function confirmDelete(partyToDelete) {
@@ -232,9 +342,19 @@ function getInitials(name) {
                 </template>
             </Column>
 
-            <Column header="Actions" style="min-width: 10rem">
+            <Column header="Actions" style="min-width: 16rem">
                 <template #body="slotProps">
                     <div class="flex gap-2">
+                        <Button
+                            icon="pi pi-check-circle"
+                            label="Verify TIN"
+                            text
+                            rounded
+                            severity="info"
+                            :loading="verifyingPartyId === slotProps.data.id"
+                            :disabled="!slotProps.data.tin_number || slotProps.data.tin_number.replace(/[-_\s]/g, '').length < 3"
+                            @click="verifyPartyTin(slotProps.data)"
+                        />
                         <Button icon="pi pi-pencil" label="Edit" text rounded class="p-button-success" @click="editParty(slotProps.data)" />
                         <Button icon="pi pi-trash" label="Delete" text rounded severity="danger" @click="confirmDelete(slotProps.data)" />
                     </div>
@@ -250,7 +370,44 @@ function getInitials(name) {
             <div class="flex items-center gap-3 pb-3" style="border-left: 4px solid #10b981; padding-left: 12px">
                 <div>
                     <div class="font-semibold text-surface-900 dark:text-surface-0">{{ party.id ? 'Update Party Details' : 'Register New Party' }}</div>
-                    <div class="text-muted-color text-sm">{{ party.id ? 'Modify party information' : 'Fill in the details to register a new party' }}</div>
+                    <div class="text-muted-color text-sm">{{ party.id ? 'Modify party information' : 'Enter TIN to auto-fill details, or fill in manually' }}</div>
+                </div>
+            </div>
+
+            <!-- TIN Verification Row -->
+            <div class="grid grid-cols-12 gap-4">
+                <div class="col-span-8">
+                    <label class="block font-medium mb-2"><i class="pi pi-hashtag mr-2 text-muted-color"></i>TIN Number</label>
+                    <div class="flex gap-2">
+                        <InputMask mask="999-999-999" v-model="party.tin_number" placeholder="122-122-122" fluid :disabled="tinVerified" @update:modelValue="onTinChange" />
+                        <Button
+                            v-if="!tinVerified"
+                            label="Verify"
+                            icon="pi pi-check-circle"
+                            :loading="tinVerifying"
+                            @click="verifyTin"
+                            class="p-button-info"
+                            style="white-space: nowrap"
+                        />
+                        <Button
+                            v-else
+                            label="Change"
+                            icon="pi pi-refresh"
+                            severity="secondary"
+                            @click="onTinChange"
+                            style="white-space: nowrap"
+                        />
+                    </div>
+                    <small v-if="tinVerified && tinMessage" class="text-green-600 font-medium mt-1 block">
+                        <i class="pi pi-check-circle mr-1"></i>{{ tinMessage }}
+                    </small>
+                    <small v-else-if="!tinVerified && tinMessage" class="text-orange-500 mt-1 block">
+                        <i class="pi pi-exclamation-triangle mr-1"></i>{{ tinMessage }} — you can enter details manually
+                    </small>
+                </div>
+                <div class="col-span-4">
+                    <label class="block font-medium mb-2"><i class="pi pi-tag mr-2 text-muted-color"></i>Type</label>
+                    <Select v-model="party.type" :options="commonSetupOptions" optionValue="id" optionLabel="name" placeholder="Select Type" fluid />
                 </div>
             </div>
 
@@ -258,12 +415,12 @@ function getInitials(name) {
             <div class="grid grid-cols-12 gap-4">
                 <div class="col-span-6">
                     <label class="block font-medium mb-2"><i class="pi pi-user mr-2 text-muted-color"></i>Name <span class="text-red-500">*</span></label>
-                    <InputText v-model.trim="party.name" placeholder="Enter party name" fluid autofocus :invalid="submitted && !party.name" />
+                    <InputText v-model.trim="party.name" placeholder="Enter party name" fluid autofocus :invalid="submitted && !party.name" :disabled="tinVerified" :class="{ 'verified-field': tinVerified }" />
                     <small v-if="submitted && !party.name" class="text-red-500">Name is required.</small>
                 </div>
                 <div class="col-span-6">
                     <label class="block font-medium mb-2"><i class="pi pi-phone mr-2 text-muted-color"></i>Phone Number <span class="text-red-500">*</span></label>
-                    <InputMask mask="9999999999" v-model="party.phone_number" placeholder="0716208468" fluid :invalid="submitted && !party.phone_number" />
+                    <InputMask mask="9999999999" v-model="party.phone_number" placeholder="0716208468" fluid :invalid="submitted && !party.phone_number" :disabled="tinVerified" :class="{ 'verified-field': tinVerified }" />
                     <small v-if="submitted && !party.phone_number" class="text-red-500">Phone number is required.</small>
                 </div>
             </div>
@@ -272,35 +429,23 @@ function getInitials(name) {
             <div class="grid grid-cols-12 gap-4">
                 <div class="col-span-6">
                     <label class="block font-medium mb-2"><i class="pi pi-envelope mr-2 text-muted-color"></i>Email Address</label>
-                    <InputText v-model.trim="party.email_address" placeholder="Enter email" fluid />
+                    <InputText v-model.trim="party.email_address" placeholder="Enter email" fluid :disabled="tinVerified" :class="{ 'verified-field': tinVerified }" />
                 </div>
                 <div class="col-span-6">
                     <label class="block font-medium mb-2"><i class="pi pi-briefcase mr-2 text-muted-color"></i>Nature of Business</label>
-                    <InputText v-model.trim="party.nature_of_business" placeholder="Enter nature of business" fluid />
+                    <InputText v-model.trim="party.nature_of_business" placeholder="Enter nature of business" fluid :disabled="tinVerified" :class="{ 'verified-field': tinVerified }" />
                 </div>
             </div>
 
-            <!-- TIN + Income Tax File -->
+            <!-- Income Tax File + VAT -->
             <div class="grid grid-cols-12 gap-4">
-                <div class="col-span-6">
-                    <label class="block font-medium mb-2"><i class="pi pi-hashtag mr-2 text-muted-color"></i>TIN Number</label>
-                    <InputMask mask="999-999-999" v-model="party.tin_number" placeholder="122-122-122" fluid />
-                </div>
                 <div class="col-span-6">
                     <label class="block font-medium mb-2"><i class="pi pi-file mr-2 text-muted-color"></i>Income Tax File Number</label>
                     <InputText v-model.trim="party.income_tax_file_number" placeholder="Enter file number" fluid />
                 </div>
-            </div>
-
-            <!-- VAT + Type -->
-            <div class="grid grid-cols-12 gap-4">
                 <div class="col-span-6">
                     <label class="block font-medium mb-2"><i class="pi pi-percentage mr-2 text-muted-color"></i>VAT Number</label>
-                    <InputText v-model.trim="party.vat_number" placeholder="Enter VAT number" fluid />
-                </div>
-                <div class="col-span-6">
-                    <label class="block font-medium mb-2"><i class="pi pi-tag mr-2 text-muted-color"></i>Type</label>
-                    <Select v-model="party.type" :options="commonSetupOptions" optionValue="id" optionLabel="name" placeholder="Select Type" fluid />
+                    <InputText v-model.trim="party.vat_number" placeholder="Enter VAT number" fluid :disabled="tinVerified" :class="{ 'verified-field': tinVerified }" />
                 </div>
             </div>
         </div>
@@ -328,3 +473,10 @@ function getInitials(name) {
         </template>
     </Dialog>
 </template>
+
+<style scoped>
+.verified-field :deep(input) {
+    background-color: #f0fdf4 !important;
+    border-color: #86efac !important;
+}
+</style>
